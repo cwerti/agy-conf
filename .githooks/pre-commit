@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Universal Pre-Commit Hook: Secret Leak Scanning & Linting
+set -e
+
+echo "🔍 Running pre-commit security and secret checks..."
+
+# Check staged files for secrets using Python script
+python security/check_secrets.py << 'EOF'
+{}
+EOF
+
+# If ruff is installed, check staged Python files
+if command -v ruff >/dev/null 2>&1; then
+    staged_py_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+    if [ -n "$staged_py_files" ]; then
+        echo "⚡ Running ruff check on staged Python files..."
+        ruff check $staged_py_files
+    fi
+fi
+
+echo "✅ Pre-commit checks passed successfully."

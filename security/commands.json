@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": "1.2.0",
+  "description": "Universal command policy with selective Git Push (allowed for personal GitHub, confirmation for corporate GitLab)",
+  "policies": {
+    "denylist": [
+      {
+        "pattern": "(^|\\s)(rm\\s+-[rf]{1,2}\\s+[/~]|rmdir\\s+/[sq]\\s+[c-zC-Z]:\\\\|del\\s+/[fsq]+\\s+[c-zC-Z]:\\\\)",
+        "reason": "Destructive root/system drive deletion is prohibited."
+      },
+      {
+        "pattern": "(^|\\s)(format\\s+[c-zC-Z]:|mkfs|dd\\s+if=)",
+        "reason": "Disk formatting or direct block writes are strictly forbidden."
+      },
+      {
+        "pattern": "(^|\\s)(shutdown|reboot|poweroff|init\\s+0|stop-computer)",
+        "reason": "System shutdown or reboot commands are blocked."
+      },
+      {
+        "pattern": "(curl|wget|Invoke-WebRequest|iwr)\\s+.*\\|\\s*(sh|bash|powershell|cmd|pwsh)",
+        "reason": "Piping unverified remote web content directly into a shell interpreter is forbidden."
+      },
+      {
+        "pattern": "git\\s+push\\s+.*(--force|-f)\\s+.*(main|master)",
+        "reason": "Force pushing to main or master branch is forbidden."
+      },
+      {
+        "pattern": "alembic\\s+downgrade\\s+base",
+        "reason": "Dropping the entire database schema via alembic downgrade base is forbidden."
+      },
+      {
+        "pattern": "python.*-c\\s+.*shutil\\.rmtree",
+        "reason": "Destructive recursive python tree removal is blocked."
+      },
+      {
+        "pattern": "(drop\\s+database|truncate\\s+table)",
+        "reason": "Destructive raw database dropping is blocked without explicit manual DBA intervention."
+      }
+    ],
+    "require_confirmation": [
+      {
+        "pattern": "(^|\\s)git\\s+(reset\\s+--hard|clean\\s+-[fdx]+)",
+        "reason": "Git hard reset or clean requires user confirmation."
+      },
+      {
+        "pattern": "(^|\\s)(pip\\s+install|poetry\\s+(add|install|remove)|npm\\s+i(nstall)?\\s+-g)",
+        "reason": "Package installation or dependency changes require user confirmation."
+      },
+      {
+        "pattern": "(^|\\s)alembic\\s+upgrade(\\s+.*)?",
+        "reason": "Applying database migrations with alembic upgrade requires confirmation."
+      },
+      {
+        "pattern": "(^|\\s)docker(\\s+compose)?\\s+(down\\s+-v|system\\s+prune|rm\\s+-f)",
+        "reason": "Docker volume deletion or container pruning requires user confirmation."
+      },
+      {
+        "pattern": "(^|\\s)(terraform\\s+(apply|destroy)|pulumi\\s+up)",
+        "reason": "Infrastructure changes require user approval."
+      }
+    ],
+    "allowlist": [
+      {
+        "pattern": "^(git\\s+(status|log|diff|branch|show|rev-parse|remote))",
+        "description": "Safe read-only git operations"
+      },
+      {
+        "pattern": "^(ls|dir|Get-ChildItem|pwd|Get-Location|cat|type|head|tail|Get-Content)(\\s+.*)?$",
+        "description": "Safe filesystem inspection commands"
+      },
+      {
+        "pattern": "^(python|python3|node|npm|poetry|git|docker)(\\s+.*)?(--version|-v|version)$",
+        "description": "Version and environment inspection"
+      },
+      {
+        "pattern": "^((python\\s+-m\\s+)?pytest|poetry\\s+run\\s+pytest)(\\s+.*)?$",
+        "description": "Running automated test suites"
+      },
+      {
+        "pattern": "^(poetry\\s+run\\s+)?poe\\s+(lint|format|isort|code-check|migrations-check|check-env-example)(\\s+.*)?$",
+        "description": "Safe project poethepoet task runner operations"
+      },
+      {
+        "pattern": "^(ruff\\s+(check|format\\s+--check)|mypy|pyright|black\\s+--check|isort\\s+--check-only|flake8)(\\s+.*)?$",
+        "description": "Linters and type checks"
+      },
+      {
+        "pattern": "^alembic\\s+(current|heads|history)(\\s+.*)?$",
+        "description": "Safe alembic schema inspection"
+      },
+      {
+        "pattern": "^(pip\\s+list|poetry\\s+show)(\\s+.*)?$",
+        "description": "Listing installed Python packages"
+      }
+    ]
+  },
+  "default_decision": "ask",
+  "default_reason": "Command is not explicitly in the safe allowlist; prompt user for confirmation."
+}

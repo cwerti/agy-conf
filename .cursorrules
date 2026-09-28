@@ -1,0 +1,6 @@
+# Cursor Configuration
+
+Please read and follow the master instructions in AGENTS.md.
+- Code style: Modern, typed, formatted, clean.
+- Security: Never expose secret credentials or run destructive commands.
+- Architecture: Check rules/ directory for modular guidelines.

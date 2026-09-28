@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Universal Commit-Msg Hook: Conventional Commits Enforcement
+set -e
+
+commit_msg_file="$1"
+commit_msg=$(head -n 1 "$commit_msg_file")
+
+# Conventional commit regex: feat|fix|refactor|docs|test|chore|style|perf|ci|build(scope)?: description
+pattern="^(feat|fix|refactor|docs|test|chore|style|perf|ci|build)(\([a-zA-Z0-9_-]+\))?:\ .+"
+
+if ! [[ "$commit_msg" =~ $pattern ]]; then
+    echo "❌ ERROR: Commit message does not follow Conventional Commits!"
+    echo "   Format: <type>(<optional-scope>): <description>"
+    echo "   Allowed types: feat, fix, refactor, docs, test, chore, style, perf, ci, build"
+    echo "   Example: feat(PROJ-123): add youtrack integration"
+    echo "   Your message was: '$commit_msg'"
+    exit 1
+fi

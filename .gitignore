@@ -1,0 +1,39 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.local
+*secret*
+*credential*
+*.pem
+*.key
+tokens.json
+
+# Local overrides (machine-specific)
+mcp/mcp_config.local.json
+security/commands.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDEs & Editors
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs & temp
+*.log
+tmp/
+temp/

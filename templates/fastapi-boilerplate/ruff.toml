@@ -1,0 +1,26 @@
+line-length = 120
+target-version = "py310"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM", "ASYNC"]
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["S101", "ANN"]
+"app/routes/*" = ["B008"]
+"migrations/versions/*" = ["F401", "E501"]
+
+[lint.flake8-tidy-imports.banned-api.tests]
+msg = "Прикладной код не должен зависеть от тестов"
+
+[lint.flake8-tidy-imports.banned-api-in."app/internal/**/*.py".fastapi]
+msg = "Сервисный слой не знает про HTTP — бросайте доменное исключение, HTTPException делаем на уровне роута"
+
+[lint.flake8-tidy-imports.banned-api-in."migrations/versions/**/*.py".models]
+msg = "Миграция обязана быть самодостаточной: модель поменяется — миграция сломается задним числом"
+
+[format]
+line-ending = "lf"
+quote-style = "double"
+indent-style = "space"

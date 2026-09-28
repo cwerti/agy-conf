@@ -1,0 +1,15 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Enforce LF on scripts and configs (critical for Docker & cross-platform)
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# PowerShell scripts can use CRLF or LF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
