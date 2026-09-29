@@ -17,6 +17,7 @@ This repository contains shared rules, skills, MCP configurations, and command s
 - **Git & Commit Guidelines**: See [rules/git.md](file:///D:/uriit/agy-conf/rules/git.md)
 - **Security & Permissions**: See [rules/security.md](file:///D:/uriit/agy-conf/rules/security.md)
 - **Code Quality & Testing**: See [rules/code-quality.md](file:///D:/uriit/agy-conf/rules/code-quality.md)
+- **Subagents Protocol**: See [rules/subagents.md](file:///D:/uriit/agy-conf/rules/subagents.md)
 
 ## Customization Structure
 - **Skills**: Progressive workflows located in `skills/<skill_name>/SKILL.md`

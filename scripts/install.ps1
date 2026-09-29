@@ -148,25 +148,57 @@ function Create-SafeLinkOrCopy {
 }
 
 # ------------------------------------------------------------------------------
-# 1. Global Setup (~/.gemini/config)
+# 1. Global Setup (~/.gemini/config) & MCP Merger
 # ------------------------------------------------------------------------------
-Write-Host "`n[1/4] Setting up Global AGY Configuration..." -ForegroundColor Cyan
+Write-Host "`n[1/5] Setting up Global AGY Configuration & MCP Servers..." -ForegroundColor Cyan
 if (-not (Test-Path $GeminiGlobalConfig)) {
     New-Item -ItemType Directory -Path $GeminiGlobalConfig -Force | Out-Null
 }
 
-$McpSource = Join-Path $RepoRoot "mcp\mcp_config.json"
-$McpDest = Join-Path $GeminiGlobalConfig "mcp_config.json"
-
-if (Test-Path $McpSource) {
-    Create-SafeLinkOrCopy -Source $McpSource -Destination $McpDest
+$MergeScript = Join-Path $RepoRoot "scripts\merge_mcp_config.py"
+if (Test-Path $MergeScript) {
+    try {
+        Write-Host "  Safely merging MCP configurations (preserving existing user servers and creating backups)..." -ForegroundColor DarkCyan
+        $mergeRaw = & python $MergeScript
+        $mergeObj = $mergeRaw | ConvertFrom-Json
+        Write-Host "  [OK] MCP servers merged successfully." -ForegroundColor Green
+        if ($mergeObj.preserved_existing_servers) {
+            Write-Host "    Preserved existing servers: $($mergeObj.preserved_existing_servers -join ', ')" -ForegroundColor Yellow
+        }
+        if ($mergeObj.added_new_servers) {
+            Write-Host "    Added new servers:         $($mergeObj.added_new_servers -join ', ')" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  Warning: MCP merger encountered an issue: $_" -ForegroundColor Yellow
+    }
 }
 
 # ------------------------------------------------------------------------------
-# 2. Project-level setup (if requested)
+# 2. Subagent Blueprints Verification
+# ------------------------------------------------------------------------------
+Write-Host "`n[2/5] Validating Specialized AI Subagent Blueprints..." -ForegroundColor Cyan
+$SubagentsDir = Join-Path $RepoRoot "subagents"
+if (Test-Path $SubagentsDir) {
+    $SubDirs = Get-ChildItem -Path $SubagentsDir -Directory
+    foreach ($sd in $SubDirs) {
+        $cfg = Join-Path $sd.FullName "subagent.json"
+        if (Test-Path $cfg) {
+            try {
+                $subData = Get-Content $cfg -Raw | ConvertFrom-Json
+                Write-Host "  [OK] Registered blueprint: $($subData.name) - $($subData.role)" -ForegroundColor Green
+            } catch {
+                Write-Host "  [ERR] Invalid subagent JSON: $cfg" -ForegroundColor Red
+            }
+        }
+    }
+    Write-Host "  Subagents are activated on demand via define_subagent / invoke_subagent." -ForegroundColor DarkGray
+}
+
+# ------------------------------------------------------------------------------
+# 3. Project-level setup (if requested)
 # ------------------------------------------------------------------------------
 if ($ProjectDir -and -not $GlobalOnly) {
-    Write-Host "`n[2/4] Setting up Project Workspace: $ProjectDir" -ForegroundColor Cyan
+    Write-Host "`n[3/5] Setting up Project Workspace: $ProjectDir" -ForegroundColor Cyan
     if (-not (Test-Path $ProjectDir)) {
         Write-Host "  Error: Target project directory does not exist: $ProjectDir" -ForegroundColor Red
     } else {
@@ -184,13 +216,13 @@ if ($ProjectDir -and -not $GlobalOnly) {
         Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "security\hooks.json") -Destination (Join-Path $AgentsDir "hooks.json")
     }
 } else {
-    Write-Host "`n[2/4] Skipping project workspace setup (pass -ProjectDir <path> to configure a project)." -ForegroundColor DarkGray
+    Write-Host "`n[3/5] Skipping project workspace setup (pass -ProjectDir <path> to configure a project)." -ForegroundColor DarkGray
 }
 
 # ------------------------------------------------------------------------------
-# 3. Environment verification & Git Hooks
+# 4. Environment verification & Git Hooks
 # ------------------------------------------------------------------------------
-Write-Host "`n[3/4] Validating Environment, Security Policy & Git Hooks..." -ForegroundColor Cyan
+Write-Host "`n[4/5] Validating Environment, Security Policy & Git Hooks..." -ForegroundColor Cyan
 try {
     $TestOutput = & python (Join-Path $RepoRoot "security\check_command.py") "git status"
     Write-Host "  Security policy test passed: $TestOutput" -ForegroundColor Green
@@ -208,7 +240,7 @@ if (Test-Path (Join-Path $RepoRoot ".git")) {
     }
 }
 
-Write-Host "`n[4/4] Installation completed successfully!" -ForegroundColor Cyan
+Write-Host "`n[5/5] Installation completed successfully!" -ForegroundColor Cyan
 Write-Host "`n⚡ Tip: Load PowerShell shortcuts by running:" -ForegroundColor Yellow
 Write-Host "  . '$RepoRoot\scripts\profile_alias.ps1'" -ForegroundColor White
 Write-Host "Or add it to your permanent `$PROFILE for instant access to agy-db, agy-sync, agy-log, agy-yt!`n" -ForegroundColor DarkGray

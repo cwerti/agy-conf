@@ -11,5 +11,6 @@ This file inherits all guidelines defined in [AGENTS.md](file:///D:/uriit/agy-co
 - Consult and evolve configurations via [`config-architect`](file:///D:/uriit/agy-conf/skills/config-architect/SKILL.md).
 - Customizations can be added via the [`add-customization`](file:///D:/uriit/agy-conf/skills/add-customization/SKILL.md) skill.
 - Record sessions and decisions via the [`session-journal`](file:///D:/uriit/agy-conf/skills/session-journal/SKILL.md) skill.
-- Specialized subagents are available in `subagents/` (`code-reviewer`, `database-architect`, `api-tester`, `debugger`).
-- Global MCP servers are managed in `mcp/mcp_config.json`.
+- Specialized subagents are declared in `subagents/` (`code-reviewer`, `database-architect`, `api-tester`, `debugger`). See [rules/subagents.md](file:///D:/uriit/agy-conf/rules/subagents.md) for dynamic registration via `define_subagent`.
+- Global MCP servers are safely merged via [`scripts/merge_mcp_config.py`](file:///D:/uriit/agy-conf/scripts/merge_mcp_config.py) into `~/.gemini/config/mcp_config.json` without deleting user configurations.
+

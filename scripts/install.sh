@@ -62,10 +62,16 @@ safe_link_or_copy() {
     }
 }
 
-# 1. Global Setup
-echo -e "\n[1/4] Setting up Global AGY Configuration..."
+# 1. Global Setup & Safe MCP Merger
+echo -e "\n[1/4] Setting up Global AGY Configuration & MCP Servers..."
 mkdir -p "$GEMINI_GLOBAL_CONFIG"
-safe_link_or_copy "${REPO_ROOT}/mcp/mcp_config.json" "${GEMINI_GLOBAL_CONFIG}/mcp_config.json"
+if command -v python3 >/dev/null 2>&1; then
+    python3 "${REPO_ROOT}/scripts/merge_mcp_config.py"
+elif command -v python >/dev/null 2>&1; then
+    python "${REPO_ROOT}/scripts/merge_mcp_config.py"
+else
+    safe_link_or_copy "${REPO_ROOT}/mcp/mcp_config.json" "${GEMINI_GLOBAL_CONFIG}/mcp_config.json"
+fi
 
 # 2. Project Setup
 if [ -n "$PROJECT_DIR" ]; then
