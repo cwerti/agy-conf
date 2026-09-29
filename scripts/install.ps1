@@ -173,6 +173,78 @@ if (Test-Path $MergeScript) {
     }
 }
 
+# Global PreToolUse Security Hooks
+$GlobalHooksDest = Join-Path $GeminiGlobalConfig "hooks.json"
+$NormalizedRepo = ($RepoRoot -replace '\\', '/')
+$GlobalHooksContent = @"
+{
+  "command-security-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python $NormalizedRepo/security/check_command.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "secret-leak-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python $NormalizedRepo/security/check_secrets.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+"@
+Set-Content -Path $GlobalHooksDest -Value $GlobalHooksContent -Encoding UTF8
+Write-Host "  [OK] Installed global PreToolUse security hooks." -ForegroundColor Green
+
+# Ensure repository and workspace are registered in trustedFolders.json
+$TrustedFoldersPath = Join-Path $UserProfile ".gemini\trustedFolders.json"
+if (Test-Path $TrustedFoldersPath) {
+    try {
+        $tf = Get-Content $TrustedFoldersPath -Raw | ConvertFrom-Json
+        $tfModified = $false
+        $key1 = $NormalizedRepo.ToLower()
+        $key2 = ($NormalizedRepo.Substring(0, 1).ToUpper() + $NormalizedRepo.Substring(1))
+        if (-not $tf.PSObject.Properties[$key1]) {
+            $tf | Add-Member -NotePropertyName $key1 -NotePropertyValue "TRUST_FOLDER" -Force
+            $tfModified = $true
+        }
+        if (-not $tf.PSObject.Properties[$key2]) {
+            $tf | Add-Member -NotePropertyName $key2 -NotePropertyValue "TRUST_FOLDER" -Force
+            $tfModified = $true
+        }
+        if ($tfModified) {
+            $tf | ConvertTo-Json | Set-Content -Path $TrustedFoldersPath -Encoding UTF8
+            Write-Host "  [OK] Registered repository in trustedFolders.json." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  Warning: could not update trustedFolders.json: $_" -ForegroundColor Yellow
+    }
+}
+
+# Ensure local .agents/hooks.json exists for current repo
+$LocalAgentsDir = Join-Path $RepoRoot ".agents"
+if (-not (Test-Path $LocalAgentsDir)) {
+    New-Item -ItemType Directory -Path $LocalAgentsDir -Force | Out-Null
+}
+Set-Content -Path (Join-Path $LocalAgentsDir "hooks.json") -Value $GlobalHooksContent -Encoding UTF8
+
 # ------------------------------------------------------------------------------
 # 2. Subagent Blueprints Verification
 # ------------------------------------------------------------------------------

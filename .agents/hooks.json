@@ -1,0 +1,32 @@
+﻿{
+  "command-security-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python D:/uriit/agy-conf/security/check_command.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "secret-leak-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python D:/uriit/agy-conf/security/check_secrets.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -144,7 +144,8 @@ def evaluate_command(command: str, policy: dict, cwd=None):
         if is_allowed:
             return {
                 "decision": "allow",
-                "reason": f"Permitted: git push to personal memory repository allowed ({reason_detail})."
+                "reason": f"Permitted: git push to personal memory repository allowed ({reason_detail}).",
+                "permissionOverrides": [f"command({cmd_trimmed})"]
             }
         else:
             return {
@@ -167,7 +168,8 @@ def evaluate_command(command: str, policy: dict, cwd=None):
         if pattern and re.search(pattern, cmd_trimmed, re.IGNORECASE):
             return {
                 "decision": "allow",
-                "reason": f"Safe command permitted: {rule.get('description', 'Matches allowlist rule.')}"
+                "reason": f"Safe command permitted: {rule.get('description', 'Matches allowlist rule.')}",
+                "permissionOverrides": [f"command({cmd_trimmed})"]
             }
 
     # 5. Fallback default

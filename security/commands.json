@@ -61,16 +61,20 @@
     ],
     "allowlist": [
       {
-        "pattern": "^(git\\s+(status|log|diff|branch|show|rev-parse|remote))",
-        "description": "Safe read-only git operations"
+        "pattern": "^git\\s+(status|log|diff|branch|show|rev-parse|remote|add|commit)(\\s+.*)?$",
+        "description": "Safe git inspection, staging, and commit operations"
       },
       {
-        "pattern": "^(ls|dir|Get-ChildItem|pwd|Get-Location|cat|type|head|tail|Get-Content)(\\s+.*)?$",
-        "description": "Safe filesystem inspection commands"
+        "pattern": "(^|\\s|&\\s+)(ls|dir|Get-ChildItem|gci|pwd|Get-Location|gl|cat|type|head|tail|Get-Content|gc|Test-Path|Select-String|sls|Select-Object|select|Where-Object|where|Sort-Object|sort|Measure-Object|Get-Command|gcm|Get-Item|gi|Get-ItemProperty|gp|Get-Process|gps|echo|Write-Host|Write-Output)(\\s+.*)?$",
+        "description": "Safe filesystem, text parsing, and environment inspection commands"
       },
       {
         "pattern": "^(python|python3|node|npm|poetry|git|docker)(\\s+.*)?(--version|-v|version)$",
         "description": "Version and environment inspection"
+      },
+      {
+        "pattern": "^python(3)?\\s+([a-zA-Z0-9_./\\\\]+)?(scripts|security)[/\\\\][a-zA-Z0-9_-]+\\.py(\\s+.*)?$",
+        "description": "Safe repository maintenance and verification scripts"
       },
       {
         "pattern": "^((python\\s+-m\\s+)?pytest|poetry\\s+run\\s+pytest)(\\s+.*)?$",
