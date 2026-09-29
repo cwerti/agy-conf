@@ -1,4 +1,14 @@
 {
+  "autonomous-memory-recall": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python D:/uriit/agy-conf/scripts/memory_recall.py",
+        "timeout": 5
+      }
+    ]
+  },
   "command-security-guard": {
     "enabled": true,
     "PreToolUse": [
@@ -7,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python security/check_command.py",
+            "command": "python D:/uriit/agy-conf/security/check_command.py",
             "timeout": 10
           }
         ]
@@ -22,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python security/check_secrets.py",
+            "command": "python D:/uriit/agy-conf/security/check_secrets.py",
             "timeout": 10
           }
         ]

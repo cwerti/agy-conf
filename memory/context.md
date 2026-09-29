@@ -32,4 +32,6 @@ This file serves as the long-term memory for AI agents across sessions, reducing
   - Linting: `ruff.toml` with `line-length = 120`.
 - **Windows UTF-8**: Always enforce `encoding="utf-8"` in Python file operations.
 - **Async Safety**: Never perform blocking I/O in `async def` FastAPI path operations.
+- **Git-Based Typed Memory**: Structured knowledge stored in `memory/knowledge/` (facts, decisions, patterns, errors), indexed via SQLite FTS5 (`scripts/memory_index.py`), and recalled autonomously at session start via PreInvocation hook (`scripts/memory_recall.py`).
 - **Session Journaling**: Agent autonomously writes session logs to `memory/sessions/` and synchronizes them to personal GitHub.
+

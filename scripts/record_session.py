@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-Autonomous Session Logger for AI Coding Agents.
-Records reasoning, decisions, and tasks into memory/sessions/
-and synchronizes with personal GitHub repository defined by AGENT_MEMORY_REPO_URL.
+Autonomous Session Logger & Knowledge Ingester for AI Coding Agents.
+Records reasoning, decisions, and tasks into memory/sessions/,
+autonomously extracts typed knowledge into memory/knowledge/,
+rebuilds the SQLite FTS5 index, and synchronizes with personal GitHub repository.
 """
 
 import sys
@@ -12,10 +13,28 @@ import datetime
 import subprocess
 from pathlib import Path
 
+if sys.platform == "win32":
+    import io
+    if hasattr(sys.stdout, "buffer"):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+    if hasattr(sys.stderr, "buffer"):
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 MEMORY_DIR = BASE_DIR / "memory"
-SESSIONS_DIR = MEMORY_DIR / "sessions"
+SESSIONS_DIR = BASE_DIR / "memory" / "sessions"
+KNOWLEDGE_DIR = BASE_DIR / "memory" / "knowledge"
 ENV_FILE = BASE_DIR / ".env"
+
+# Import memory_index utilities
+sys.path.insert(0, str(BASE_DIR / "scripts"))
+try:
+    from memory_index import extract_knowledge_from_session, append_knowledge, build_index, KNOWLEDGE_TYPES
+except ImportError:
+    extract_knowledge_from_session = None
+    append_knowledge = None
+    build_index = None
+    KNOWLEDGE_TYPES = ("facts", "decisions", "patterns", "errors")
 
 
 def load_env():
@@ -70,14 +89,30 @@ def record_session(topic: str, objective: str, reasoning: str, files_changed: li
 
     print(f"Session recorded in: {session_file}")
 
+    # Autonomous Knowledge Ingestion
+    if extract_knowledge_from_session and append_knowledge and build_index:
+        try:
+            extracted = extract_knowledge_from_session(session_file)
+            added_count = 0
+            for item in extracted:
+                kt = item.get("type", "fact") + "s"
+                if kt not in KNOWLEDGE_TYPES:
+                    kt = "facts"
+                append_knowledge(kt, item)
+                added_count += 1
+            indexed_total = build_index()
+            print(f"Autonomous memory: extracted {added_count} items into knowledge/, indexed {indexed_total} total records.")
+        except Exception as e:
+            print(f"Warning: autonomous knowledge ingestion failed: {e}", file=sys.stderr)
+
     memory_repo_url = os.environ.get("AGENT_MEMORY_REPO_URL", "")
     if memory_repo_url:
         print(f"Designated Memory Repository: {memory_repo_url}")
 
     if push:
         try:
-            print("Syncing session documentation to memory repository...")
-            subprocess.run(["git", "add", "memory/"], cwd=BASE_DIR, check=True)
+            print("Syncing session documentation and typed knowledge to memory repository...")
+            subprocess.run(["git", "add", "memory/sessions/", "memory/knowledge/"], cwd=BASE_DIR, check=True)
             subprocess.run(["git", "commit", "-m", f"docs(memory): log session - {topic}"], cwd=BASE_DIR, check=True)
             subprocess.run(["git", "push"], cwd=BASE_DIR, check=True)
             print("Successfully pushed session log to remote.")

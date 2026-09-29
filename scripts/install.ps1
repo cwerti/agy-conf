@@ -173,11 +173,21 @@ if (Test-Path $MergeScript) {
     }
 }
 
-# Global PreToolUse Security Hooks
+# Global PreToolUse & PreInvocation Security / Memory Hooks
 $GlobalHooksDest = Join-Path $GeminiGlobalConfig "hooks.json"
 $NormalizedRepo = ($RepoRoot -replace '\\', '/')
 $GlobalHooksContent = @"
 {
+  "autonomous-memory-recall": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python $NormalizedRepo/scripts/memory_recall.py",
+        "timeout": 5
+      }
+    ]
+  },
   "command-security-guard": {
     "enabled": true,
     "PreToolUse": [
@@ -211,7 +221,7 @@ $GlobalHooksContent = @"
 }
 "@
 Set-Content -Path $GlobalHooksDest -Value $GlobalHooksContent -Encoding UTF8
-Write-Host "  [OK] Installed global PreToolUse security hooks." -ForegroundColor Green
+Write-Host "  [OK] Installed global PreToolUse & PreInvocation hooks." -ForegroundColor Green
 
 # Ensure repository and workspace are registered in trustedFolders.json
 $TrustedFoldersPath = Join-Path $UserProfile ".gemini\trustedFolders.json"
@@ -309,6 +319,17 @@ if (Test-Path (Join-Path $RepoRoot ".git")) {
         Write-Host "  Git hooks enabled (.githooks/pre-commit and .githooks/commit-msg)." -ForegroundColor Green
     } catch {
         Write-Host "  Warning: could not configure git core.hooksPath." -ForegroundColor Yellow
+    }
+}
+
+# Build or refresh local FTS5 agent memory index
+$MemIndexScript = Join-Path $RepoRoot "scripts\memory_index.py"
+if (Test-Path $MemIndexScript) {
+    try {
+        $idxRes = & python $MemIndexScript build
+        Write-Host "  [OK] Agent memory FTS5 index built successfully." -ForegroundColor Green
+    } catch {
+        Write-Host "  Warning: could not build agent memory index: $_" -ForegroundColor Yellow
     }
 }
 

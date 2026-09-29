@@ -37,3 +37,7 @@ desktop.ini
 *.log
 tmp/
 temp/
+memory/index/
+*.db
+*.db-wal
+*.db-shm

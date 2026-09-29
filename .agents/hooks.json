@@ -1,4 +1,14 @@
 ﻿{
+  "autonomous-memory-recall": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python D:/uriit/agy-conf/scripts/memory_recall.py",
+        "timeout": 5
+      }
+    ]
+  },
   "command-security-guard": {
     "enabled": true,
     "PreToolUse": [
