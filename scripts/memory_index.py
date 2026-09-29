@@ -24,28 +24,81 @@ import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MEMORY_DIR = REPO_ROOT / "memory"
-KNOWLEDGE_DIR = MEMORY_DIR / "knowledge"
-SESSIONS_DIR = MEMORY_DIR / "sessions"
-INDEX_DIR = MEMORY_DIR / "index"
-DB_PATH = INDEX_DIR / "memory.db"
-CONTEXT_FILE = MEMORY_DIR / "context.md"
+ENV_FILE = REPO_ROOT / ".env"
+
+
+def load_env():
+    if ENV_FILE.exists():
+        try:
+            with open(ENV_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#") or "=" not in line:
+                        continue
+                    k, _, v = line.partition("=")
+                    k, v = k.strip(), v.strip().strip('"').strip("'")
+                    if k and k not in os.environ:
+                        os.environ[k] = v
+        except Exception:
+            pass
+
+
+load_env()
+
+
+def resolve_memory_dir() -> Path:
+    """
+    Resolve the active memory directory.
+    Priority:
+    1. AGENT_MEMORY_PATH environment variable (if exists)
+    2. Sibling directory 'agent-memory' (e.g. D:/uriit/agent-memory)
+    3. User home ~/.gemini/agent-memory (if exists)
+    4. Fallback: local memory/ inside agy-conf repo
+    """
+    env_p = os.environ.get("AGENT_MEMORY_PATH")
+    if env_p and Path(env_p).exists():
+        return Path(env_p).resolve()
+
+    sibling = REPO_ROOT.parent / "agent-memory"
+    if sibling.exists() and (sibling / "context.md").exists():
+        return sibling.resolve()
+
+    home_mem = Path.home() / ".gemini" / "agent-memory"
+    if home_mem.exists() and (home_mem / "context.md").exists():
+        return home_mem.resolve()
+
+    return (REPO_ROOT / "memory").resolve()
+
+
+def get_memory_paths():
+    mdir = resolve_memory_dir()
+    return {
+        "memory_dir": mdir,
+        "knowledge_dir": mdir / "knowledge",
+        "sessions_dir": mdir / "sessions",
+        "index_dir": mdir / "index",
+        "db_path": mdir / "index" / "memory.db",
+        "context_file": mdir / "context.md",
+    }
+
 
 KNOWLEDGE_TYPES = ("facts", "decisions", "patterns", "errors")
 
 
 def ensure_dirs():
-    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
-    INDEX_DIR.mkdir(parents=True, exist_ok=True)
+    paths = get_memory_paths()
+    paths["knowledge_dir"].mkdir(parents=True, exist_ok=True)
+    paths["index_dir"].mkdir(parents=True, exist_ok=True)
     for kt in KNOWLEDGE_TYPES:
-        fp = KNOWLEDGE_DIR / f"{kt}.jsonl"
+        fp = paths["knowledge_dir"] / f"{kt}.jsonl"
         if not fp.exists():
             fp.touch()
 
 
 def _connect_db() -> sqlite3.Connection:
     ensure_dirs()
-    conn = sqlite3.connect(str(DB_PATH))
+    db_path = get_memory_paths()["db_path"]
+    conn = sqlite3.connect(str(db_path))
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -71,8 +124,12 @@ def _connect_db() -> sqlite3.Connection:
 # Knowledge JSONL I/O
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Knowledge JSONL I/O
+# ---------------------------------------------------------------------------
+
 def load_knowledge(ktype: str) -> list[dict]:
-    fp = KNOWLEDGE_DIR / f"{ktype}.jsonl"
+    fp = get_memory_paths()["knowledge_dir"] / f"{ktype}.jsonl"
     if not fp.exists():
         return []
     entries = []
@@ -89,7 +146,7 @@ def load_knowledge(ktype: str) -> list[dict]:
 
 def append_knowledge(ktype: str, entry: dict) -> str:
     ensure_dirs()
-    fp = KNOWLEDGE_DIR / f"{ktype}.jsonl"
+    fp = get_memory_paths()["knowledge_dir"] / f"{ktype}.jsonl"
     if "id" not in entry:
         prefix = ktype[0]
         ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
@@ -193,6 +250,7 @@ def build_index():
     conn.execute("DELETE FROM memory_fts")
     conn.execute("DELETE FROM memory_meta")
     count = 0
+    paths = get_memory_paths()
 
     # 1. Index knowledge JSONL files
     for ktype in KNOWLEDGE_TYPES:
@@ -201,8 +259,9 @@ def build_index():
             count += 1
 
     # 2. Index session Markdown files
-    if SESSIONS_DIR.exists():
-        for md_file in sorted(SESSIONS_DIR.glob("*.md")):
+    sessions_dir = paths["sessions_dir"]
+    if sessions_dir.exists():
+        for md_file in sorted(sessions_dir.glob("*.md")):
             text = md_file.read_text(encoding="utf-8")
             entry = {
                 "id": f"session_{md_file.stem}",
@@ -216,8 +275,9 @@ def build_index():
             count += 1
 
     # 3. Index context.md
-    if CONTEXT_FILE.exists():
-        ctx_text = CONTEXT_FILE.read_text(encoding="utf-8")
+    context_file = paths["context_file"]
+    if context_file.exists():
+        ctx_text = context_file.read_text(encoding="utf-8")
         entry = {
             "id": "global_context",
             "type": "context",
@@ -260,7 +320,8 @@ def _index_entry(conn: sqlite3.Connection, entry: dict):
 
 def search_memory(query: str, top_k: int = 5) -> list[dict]:
     """BM25 search over indexed memory. Returns ranked results with LIKE fallback."""
-    if not DB_PATH.exists():
+    paths = get_memory_paths()
+    if not paths["db_path"].exists():
         build_index()
 
     words = [re.sub(r"[^\w]", "", w) for w in query.strip().split()]

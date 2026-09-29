@@ -37,7 +37,15 @@ desktop.ini
 *.log
 tmp/
 temp/
+
+# Personal memory (stored in dedicated agent-memory repo)
+memory/context.md
 memory/index/
+memory/sessions/*.md
+!memory/sessions/README.md
+memory/knowledge/*.jsonl
+!memory/knowledge/.gitkeep
 *.db
 *.db-wal
 *.db-shm
+

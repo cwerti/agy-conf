@@ -23,14 +23,12 @@ python scripts/record_session.py "<Topic>" "<Objective>" "<Reasoning>" "<Files>"
 ```
 
 ### 3. Update Persistent Context
-If global preferences, active projects, or architecture patterns changed, update `memory/context.md`.
+If global preferences, active projects, or architecture patterns changed, update `context.md` in the personal memory repository (`agent-memory`).
 
 ### 4. Sync to Personal Memory Repository
-The target repository is read from the `AGENT_MEMORY_REPO_URL` variable.
-Stage memory files and push (allowed without confirmation when matching `AGENT_MEMORY_REPO_URL`):
+The target repository is read from `AGENT_MEMORY_PATH` / `AGENT_MEMORY_REPO_URL`.
+When running with `--push`, `record_session.py` commits and pushes directly to `agent-memory`:
 ```powershell
-git add memory/
-git commit -m "docs(memory): log session - <Topic>"
-git push origin <branch>
+python scripts/record_session.py "<Topic>" "<Objective>" "<Reasoning>" --push "<Files>"
 ```
 *(Note: Never push to corporate GitLab automatically; only to the repository matching `AGENT_MEMORY_REPO_URL`).*

@@ -14,31 +14,30 @@ import os
 import json
 from pathlib import Path
 
-if sys.platform == "win32":
-    import io
-    if hasattr(sys.stdout, "buffer"):
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-    if hasattr(sys.stderr, "buffer"):
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
-MEMORY_DIR = REPO_ROOT / "memory"
-KNOWLEDGE_DIR = MEMORY_DIR / "knowledge"
-INDEX_DIR = MEMORY_DIR / "index"
-DB_PATH = INDEX_DIR / "memory.db"
 
-# Lazy import search from memory_index
+# Lazy import search and paths from memory_index
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 try:
-    from memory_index import search_memory, build_index
+    from memory_index import search_memory, build_index, get_memory_paths, resolve_memory_dir
 except ImportError:
     search_memory = None
     build_index = None
+    get_memory_paths = None
+    resolve_memory_dir = None
 
 
 def get_session_start_memories(workspace_name: str = "") -> str:
-    """Retrieve top key architectural decisions and active facts."""
-    if not DB_PATH.exists() and build_index:
+    """Retrieve top key architectural decisions and active facts from active memory repo."""
+    paths = get_memory_paths() if get_memory_paths else {
+        "knowledge_dir": REPO_ROOT / "memory" / "knowledge",
+        "db_path": REPO_ROOT / "memory" / "index" / "memory.db"
+    }
+
+    db_path = paths["db_path"]
+    knowledge_dir = paths["knowledge_dir"]
+
+    if not db_path.exists() and build_index:
         try:
             build_index()
         except Exception:
@@ -48,19 +47,19 @@ def get_session_start_memories(workspace_name: str = "") -> str:
     facts = []
 
     # Read latest decisions from decisions.jsonl
-    decisions_file = KNOWLEDGE_DIR / "decisions.jsonl"
+    decisions_file = knowledge_dir / "decisions.jsonl"
     if decisions_file.exists():
         try:
             lines = decisions_file.read_text(encoding="utf-8").strip().splitlines()
             for l in lines[-4:]:  # Latest 4 decisions
                 if l.strip():
                     d = json.loads(l)
-                    decisions.append(f"• [{d.get('id', 'ADR')}] {d.get('question', '')} -> {d.get('decision', '')}")
+                    decisions.append(f"- [{d.get('id', 'ADR')}] {d.get('question', '')} -> {d.get('decision', '')}")
         except Exception:
             pass
 
     # Read latest facts from facts.jsonl
-    facts_file = KNOWLEDGE_DIR / "facts.jsonl"
+    facts_file = knowledge_dir / "facts.jsonl"
     if facts_file.exists():
         try:
             lines = facts_file.read_text(encoding="utf-8").strip().splitlines()
@@ -70,7 +69,7 @@ def get_session_start_memories(workspace_name: str = "") -> str:
                     text = f.get('text', '')
                     if len(text) > 140:
                         text = text[:137] + "..."
-                    facts.append(f"• {text}")
+                    facts.append(f"- {text}")
         except Exception:
             pass
 
@@ -82,7 +81,7 @@ def get_session_start_memories(workspace_name: str = "") -> str:
             for h in hits:
                 if h.get("type") in ("decision", "pattern"):
                     snippet = h.get("text", "")[:120]
-                    ws_matches.append(f"• ({h.get('type')}) {snippet}")
+                    ws_matches.append(f"- ({h.get('type')}) {snippet}")
         except Exception:
             pass
 
@@ -129,7 +128,7 @@ def main():
             "injectSteps": []
         }
 
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result, ensure_ascii=True))
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ This file inherits all guidelines defined in [AGENTS.md](file:///D:/uriit/agy-co
 ## Quick Summary
 - Review [rules/fastapi.md](file:///D:/uriit/agy-conf/rules/fastapi.md) for backend FastAPI best practices (Pydantic v2, async DB sessions, testing).
 - Check [rules/workspaces.md](file:///D:/uriit/agy-conf/rules/workspaces.md) for Work (GitLab/YouTrack) vs Personal (GitHub) guidelines.
-- Check [rules/memory.md](file:///D:/uriit/agy-conf/rules/memory.md) for autonomous session journaling in `memory/sessions/`.
+- Check [rules/memory.md](file:///D:/uriit/agy-conf/rules/memory.md) for autonomous typed memory in personal `agent-memory` repository.
 - Check [rules/security.md](file:///D:/uriit/agy-conf/rules/security.md) for allowed/prohibited commands.
 - Check [rules/git.md](file:///D:/uriit/agy-conf/rules/git.md) for commit standards.
 - Consult and evolve configurations via [`config-architect`](file:///D:/uriit/agy-conf/skills/config-architect/SKILL.md).

@@ -13,13 +13,6 @@ import datetime
 import subprocess
 from pathlib import Path
 
-if sys.platform == "win32":
-    import io
-    if hasattr(sys.stdout, "buffer"):
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-    if hasattr(sys.stderr, "buffer"):
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 MEMORY_DIR = BASE_DIR / "memory"
 SESSIONS_DIR = BASE_DIR / "memory" / "sessions"
@@ -29,11 +22,16 @@ ENV_FILE = BASE_DIR / ".env"
 # Import memory_index utilities
 sys.path.insert(0, str(BASE_DIR / "scripts"))
 try:
-    from memory_index import extract_knowledge_from_session, append_knowledge, build_index, KNOWLEDGE_TYPES
+    from memory_index import (
+        extract_knowledge_from_session, append_knowledge, build_index,
+        resolve_memory_dir, get_memory_paths, KNOWLEDGE_TYPES
+    )
 except ImportError:
     extract_knowledge_from_session = None
     append_knowledge = None
     build_index = None
+    resolve_memory_dir = lambda: BASE_DIR / "memory"
+    get_memory_paths = lambda: {"sessions_dir": BASE_DIR / "memory" / "sessions", "knowledge_dir": BASE_DIR / "memory" / "knowledge"}
     KNOWLEDGE_TYPES = ("facts", "decisions", "patterns", "errors")
 
 
@@ -62,10 +60,13 @@ def slugify(text: str) -> str:
 
 
 def record_session(topic: str, objective: str, reasoning: str, files_changed: list, next_steps: str = "", push: bool = False):
-    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    mem_dir = resolve_memory_dir()
+    sessions_dir = mem_dir / "sessions"
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+
     today = datetime.date.today().isoformat()
     slug = slugify(topic)[:40] or "session"
-    session_file = SESSIONS_DIR / f"{today}-{slug}.md"
+    session_file = sessions_dir / f"{today}-{slug}.md"
 
     content = f"""# Session Log: {topic}
 
@@ -87,7 +88,7 @@ def record_session(topic: str, objective: str, reasoning: str, files_changed: li
     with open(session_file, "w", encoding="utf-8") as fp:
         fp.write(content)
 
-    print(f"Session recorded in: {session_file}")
+    print(f"Session recorded in: {session_file} (Target Memory Repo: {mem_dir.name})")
 
     # Autonomous Knowledge Ingestion
     if extract_knowledge_from_session and append_knowledge and build_index:
@@ -107,15 +108,20 @@ def record_session(topic: str, objective: str, reasoning: str, files_changed: li
 
     memory_repo_url = os.environ.get("AGENT_MEMORY_REPO_URL", "")
     if memory_repo_url:
-        print(f"Designated Memory Repository: {memory_repo_url}")
+        print(f"Designated Remote Memory Repository: {memory_repo_url}")
 
     if push:
+        is_git_repo = (mem_dir / ".git").exists()
+        git_target = mem_dir if is_git_repo else BASE_DIR
         try:
-            print("Syncing session documentation and typed knowledge to memory repository...")
-            subprocess.run(["git", "add", "memory/sessions/", "memory/knowledge/"], cwd=BASE_DIR, check=True)
-            subprocess.run(["git", "commit", "-m", f"docs(memory): log session - {topic}"], cwd=BASE_DIR, check=True)
-            subprocess.run(["git", "push"], cwd=BASE_DIR, check=True)
-            print("Successfully pushed session log to remote.")
+            print(f"Syncing session documentation to memory repository ({git_target})...")
+            if is_git_repo:
+                subprocess.run(["git", "add", "sessions/", "knowledge/"], cwd=git_target, check=True)
+            else:
+                subprocess.run(["git", "add", "memory/sessions/", "memory/knowledge/"], cwd=git_target, check=True)
+            subprocess.run(["git", "commit", "-m", f"docs(memory): log session - {topic}"], cwd=git_target, check=True)
+            subprocess.run(["git", "push"], cwd=git_target, check=True)
+            print("Successfully pushed session log to memory remote.")
         except Exception as e:
             print(f"Warning: git push skipped or failed: {e}")
 

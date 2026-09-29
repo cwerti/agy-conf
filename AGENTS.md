@@ -7,7 +7,7 @@ This repository contains shared rules, skills, MCP configurations, and command s
 2. **Safety First**: Never execute destructive system commands. Comply strictly with [security/commands.json](file:///D:/uriit/agy-conf/security/commands.json).
 3. **Verified Code**: Run tests, linters, or manual verification commands after proposing or editing code.
 4. **Clean Git History**: Follow Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`). Never force-push to `main`/`master`.
-5. **Autonomous Documentation**: Maintain session reasoning and decisions in `memory/sessions/` and sync to personal GitHub.
+5. **Autonomous Documentation**: Maintain session reasoning and decisions in dedicated personal memory repository (`agent-memory`) synced to personal GitHub.
 
 ## Detailed Modular Rules
 - **General Behavior**: See [rules/general.md](file:///D:/uriit/agy-conf/rules/general.md)

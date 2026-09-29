@@ -46,7 +46,9 @@ When concluding a milestone or session:
 
 ---
 
-## 3. Remote Sync & Security Gate
-- The target repository URL is defined by `AGENT_MEMORY_REPO_URL` (in `.env` or system environment).
-- Git push is automatically permitted **only** to the designated memory repository.
+## 3. Remote Sync & Dedicated Memory Repository
+- The target repository URL is defined by `AGENT_MEMORY_REPO_URL` (e.g. `https://github.com/cwerti/agent-memory.git`).
+- The local clone path is resolved via `AGENT_MEMORY_PATH` (defaults to sibling `../agent-memory`).
+- `record_session.py` commits and pushes directly to `agent-memory`, keeping `agy-conf` clean and generic.
+- Git push is automatically permitted to the personal memory repository and personal GitHub repos.
 - Corporate repositories (GitLab) must **never** receive automatic memory pushes.

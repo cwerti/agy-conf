@@ -322,6 +322,31 @@ if (Test-Path (Join-Path $RepoRoot ".git")) {
     }
 }
 
+# Clone or locate personal memory repository if configured
+$MemRepoUrl = $env:AGENT_MEMORY_REPO_URL
+$ParentDir = Split-Path $RepoRoot -Parent
+$DefaultMemDir = Join-Path $ParentDir "agent-memory"
+
+if (-not $MemRepoUrl -and (Test-Path (Join-Path $RepoRoot ".env"))) {
+    Get-Content (Join-Path $RepoRoot ".env") | ForEach-Object {
+        if ($_ -match '^\s*AGENT_MEMORY_REPO_URL\s*=\s*(.+)$') {
+            $MemRepoUrl = $matches[1].Trim().Trim('"').Trim("'")
+        }
+    }
+}
+
+if ($MemRepoUrl -and -not (Test-Path $DefaultMemDir)) {
+    try {
+        Write-Host "  Cloning personal memory repository from $MemRepoUrl..." -ForegroundColor DarkGray
+        & git clone $MemRepoUrl $DefaultMemDir
+        if (Test-Path $DefaultMemDir) {
+            Write-Host "  [OK] Cloned personal memory repository to $DefaultMemDir" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  Note: Could not clone memory repository automatically. Clone it manually to: $DefaultMemDir" -ForegroundColor DarkGray
+    }
+}
+
 # Build or refresh local FTS5 agent memory index
 $MemIndexScript = Join-Path $RepoRoot "scripts\memory_index.py"
 if (Test-Path $MemIndexScript) {
