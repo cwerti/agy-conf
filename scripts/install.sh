@@ -35,8 +35,22 @@ if [ -f "$ENV_EXAMPLE" ] && [ ! -f "$ENV_FILE" ]; then
             key="${trimmed%%=*}"
             default_val="${trimmed#*=}"
 
-            read -rp "  -> Enter value for ${key} [${default_val}]: " user_val
-            final_val="${user_val:-$default_val}"
+            is_optional=false
+            if [[ "$key" =~ GITLAB|YOUTRACK ]]; then
+                is_optional=true
+            fi
+
+            if [ "$is_optional" = true ]; then
+                read -rp "  -> Enter value for ${key} (Optional - press Enter to skip): " user_val
+                if [ -z "$user_val" ]; then
+                    final_val=""
+                else
+                    final_val="$user_val"
+                fi
+            else
+                read -rp "  -> Enter value for ${key} [${default_val}]: " user_val
+                final_val="${user_val:-$default_val}"
+            fi
             echo "${key}=${final_val}" >> "$ENV_FILE"
         fi
     done < "$ENV_EXAMPLE"
@@ -62,6 +76,19 @@ safe_link_or_copy() {
     }
 }
 
+configure_single_project() {
+    local target="$1"
+    if [ ! -d "$target" ]; then return; fi
+    if [ "$target" = "$REPO_ROOT" ] || [[ "$target" == *"agent-memory"* ]]; then return; fi
+
+    mkdir -p "${target}/.agents/rules"
+    mkdir -p "${target}/.agents/skills"
+    safe_link_or_copy "${REPO_ROOT}/AGENTS.md" "${target}/AGENTS.md"
+    safe_link_or_copy "${REPO_ROOT}/GEMINI.md" "${target}/GEMINI.md"
+    safe_link_or_copy "${REPO_ROOT}/security/hooks.json" "${target}/.agents/hooks.json"
+    echo "  [OK] Configured project: $target"
+}
+
 # 1. Global Setup & Safe MCP Merger
 echo -e "\n[1/4] Setting up Global AGY Configuration & MCP Servers..."
 mkdir -p "$GEMINI_GLOBAL_CONFIG"
@@ -74,19 +101,19 @@ else
 fi
 
 # 2. Project Setup
-if [ -n "$PROJECT_DIR" ]; then
+if [ "${PROJECT_DIR}" = "--all-projects" ] || [ "${PROJECT_DIR}" = "-a" ]; then
+    echo -e "\n[2/4] Setting up All Discovered Project Workspaces..."
+    parent_dir="$(dirname "$REPO_ROOT")"
+    for d in "$parent_dir"/*; do
+        if [ -d "$d" ]; then
+            configure_single_project "$d"
+        fi
+    done
+elif [ -n "$PROJECT_DIR" ] && [ "$PROJECT_DIR" != "--global-only" ]; then
     echo -e "\n[2/4] Setting up Project Workspace: ${PROJECT_DIR}..."
-    if [ ! -d "$PROJECT_DIR" ]; then
-        echo "  Error: Target directory does not exist: $PROJECT_DIR" >&2
-    else
-        mkdir -p "${PROJECT_DIR}/.agents/rules"
-        mkdir -p "${PROJECT_DIR}/.agents/skills"
-        safe_link_or_copy "${REPO_ROOT}/AGENTS.md" "${PROJECT_DIR}/AGENTS.md"
-        safe_link_or_copy "${REPO_ROOT}/GEMINI.md" "${PROJECT_DIR}/GEMINI.md"
-        safe_link_or_copy "${REPO_ROOT}/security/hooks.json" "${PROJECT_DIR}/.agents/hooks.json"
-    fi
+    configure_single_project "$PROJECT_DIR"
 else
-    echo -e "\n[2/4] Skipping project workspace setup (pass path as arg1 to configure a project)."
+    echo -e "\n[2/4] Skipping project workspace setup (pass path or --all-projects to configure projects)."
 fi
 
 # 3. Validation

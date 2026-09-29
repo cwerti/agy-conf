@@ -10,23 +10,41 @@
 
 ### 1. Клонирование репозитория
 ```powershell
-git clone https://github.com/cwerti/agy-conf.git D:\uriit\agy-conf
-cd D:\uriit\agy-conf
+git clone https://github.com/cwerti/agy-conf.git
+cd agy-conf
 ```
 
 ### 2. Запуск автоматического инсталлятора
-```powershell
-.\scripts\install.ps1 -GlobalOnly
-```
+
+Выберите подходящий режим запуска:
+
+* **Ко всем проектам в рабочей директории (Рекомендуется):**
+  ```powershell
+  .\scripts\install.ps1 -AllProjects
+  ```
+  *(Настроит глобальный профиль, зарегистрирует доверенные папки и подключит `.agents/hooks.json`, `AGENTS.md` и `GEMINI.md` ко всем обнаруженным проектам в директории)*
+
+* **Только для глобального профиля (без привязки к проектам):**
+  ```powershell
+  .\scripts\install.ps1 -GlobalOnly
+  ```
+
+* **Для конкретного проекта:**
+  ```powershell
+  .\scripts\install.ps1 -ProjectDir "D:\path\to\my-app"
+  ```
+
+> [!TIP]
+> **GitLab и YouTrack опциональны**: если вы не используете корпоративный GitLab или YouTrack, просто нажмите **Enter** (пропустите ввод) при запросе в мастере настройки `.env`. Соответствующие MCP-серверы просто не будут зарегистрированы, и всё продолжит работать без ошибок. То же самое касается персонального репозитория памяти — если URL не указан, используется локальная папка памяти.
 
 Инсталлятор в интерактивном режиме:
-1. **Проверит `.env`**: если файла нет, запросит параметры (URL личного репозитория памяти, токены GitHub/GitLab/YouTrack, параметры PostgreSQL и Redis) и безопасно сохранит их в `.env`.
+1. **Проверит `.env`**: если файла нет, запросит параметры (URL личного репозитория памяти, токены GitHub/GitLab/YouTrack, параметры PostgreSQL и Redis) и безопасно сохранит их в `.env`. Опциональные сервисы можно пропустить нажатием `Enter`.
 2. **Склонирует личный репозиторий памяти**: если задан `AGENT_MEMORY_REPO_URL`, автоматически склонирует его рядом (`../agent-memory`).
-3. **Безопасно объединит MCP-серверы**: запустит [`scripts/merge_mcp_config.py`](file:///D:/uriit/agy-conf/scripts/merge_mcp_config.py), создаст бэкап и бережно объединит серверы в `~/.gemini/config/mcp_config.json`, **никогда не удаляя** существующие серверы пользователя.
+3. **Безопасно объединит MCP-серверы**: запустит [`scripts/merge_mcp_config.py`](file:///D:/uriit/agy-conf/scripts/merge_mcp_config.py), создаст бэкап и бережно объединит серверы в `~/.gemini/config/mcp_config.json`, **никогда не удаляя** существующие серверы пользователя. Опциональные серверы без токенов автоматически пропускаются.
 4. **Установит хуки безопасности и памяти**: зарегистрирует глобальные `PreToolUse` (контроль команд и защита от утечки секретов) и `PreInvocation` (автоматическая подгрузка памяти) хуки.
 5. **Построит локальный поисковый индекс памяти FTS5** для мгновенного поиска без LLM-вызовов.
 
-*(Для Linux / macOS используйте `./scripts/install.sh`)*.
+*(Для Linux / macOS используйте `./scripts/install.sh --all-projects` или `./scripts/install.sh --global-only`)*.
 
 ### 3. Удобные шорткаты в PowerShell
 Загрузите алиасы для текущей сессии:
@@ -41,25 +59,6 @@ cd D:\uriit\agy-conf
 * `agy-db` — автоопределение и переключение строки БД для MCP.
 * `agy-sync` — быстрая синхронизация репозитория конфигураций.
 * `agy-doc` — запуск комплексной диагностики окружения (`env-doctor`).
-
----
-
-## 🏛️ Двухрепозиторная архитектура (Dual-Repository Architecture)
-
-Для того чтобы конфигурации и правила оставались **открытыми и переиспользуемыми** для других разработчиков, а личные заметки, контекст рабочих проектов и корпоративные детали оставались **строго приватными**, система разделена на два репозитория:
-
-| Репозиторий | Назначение | Доступ | Что хранится |
-| :--- | :--- | :--- | :--- |
-| **[`cwerti/agy-conf`](https://github.com/cwerti/agy-conf)** *(Этот репозиторий)* | **Публичный фреймворк конфигураций** | Public / Shared | Универсальные правила (`rules/`), навыки (`skills/`), блюпринты субагентов (`subagents/`), MCP серверы, хуки безопасности и скрипты установки. Чист от личных логов и приватных данных. |
-| **[`cwerti/agent-memory`](https://github.com/cwerti/agent-memory)** | **Персональный репозиторий памяти** | Private | Личный профиль разработчика (`context.md`), типизированные знания (`knowledge/*.jsonl`), журналы сессий (`sessions/*.md`), оверрайды настроек. |
-
-### Как это устроено:
-* Скрипты памяти ([`scripts/memory_index.py`](file:///D:/uriit/agy-conf/scripts/memory_index.py), [`scripts/memory_recall.py`](file:///D:/uriit/agy-conf/scripts/memory_recall.py), [`scripts/record_session.py`](file:///D:/uriit/agy-conf/scripts/record_session.py)) динамически разрешают путь к памяти:
-  1. `AGENT_MEMORY_PATH` (в `.env`: например, `D:\uriit\agent-memory`)
-  2. Соседняя папка `../agent-memory`
-  3. `~/.gemini/agent-memory`
-  4. Локальный фоллбэк: `memory/` внутри `agy-conf` (шаблоны)
-* При записи сессии (`record_session.py --push`) коммит и `git push` происходят **только внутри репозитория памяти**, отправляя данные в `https://github.com/cwerti/agent-memory.git`. Репозиторий `agy-conf` остаётся чистым.
 
 ---
 
@@ -214,10 +213,16 @@ agy-conf/
 
 ## 🔗 Подключение к проектам
 
-Чтобы применить правила и шлюз безопасности к любому проекту разработки:
+Чтобы применить правила и шлюз безопасности:
 
-```powershell
-.\scripts\install.ps1 -ProjectDir "D:\uriit\my-backend-app"
-```
+* **Ко всем проектам в рабочей директории:**
+  ```powershell
+  .\scripts\install.ps1 -AllProjects
+  ```
 
-В целевом проекте будет создана папка `.agents/` с перехватчиком `hooks.json`, а также симлинки/копии на `AGENTS.md` и `GEMINI.md`.
+* **К конкретному проекту:**
+  ```powershell
+  .\scripts\install.ps1 -ProjectDir "D:\uriit\my-backend-app"
+  ```
+
+В целевых проектах будет создана папка `.agents/` с перехватчиком `hooks.json`, ссылки на `AGENTS.md` и `GEMINI.md`, а также проекты будут зарегистрированы в списке доверенных папок Antigravity (`~/.gemini/trustedFolders.json`).

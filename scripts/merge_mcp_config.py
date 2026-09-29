@@ -86,6 +86,23 @@ def load_json_safe(file_path: Path) -> dict:
         return {}
 
 
+def has_unresolved_placeholders(obj) -> bool:
+    if isinstance(obj, str):
+        return bool(re.search(r"\$\{[A-Za-z0-9_]+\}", obj))
+    elif isinstance(obj, list):
+        return any(has_unresolved_placeholders(x) for x in obj)
+    elif isinstance(obj, dict):
+        return any(has_unresolved_placeholders(v) for v in obj.values())
+    return False
+
+
+OPTIONAL_SERVER_REQUIREMENTS = {
+    "gitlab-work": ["GITLAB_TOKEN", "GITLAB_URL"],
+    "youtrack": ["YOUTRACK_PERMANENT_TOKEN", "YOUTRACK_BASE_URL"],
+    "github-personal": ["GITHUB_TOKEN"],
+}
+
+
 def merge_mcp():
     env_vars = load_env_vars()
 
@@ -120,9 +137,23 @@ def merge_mcp():
             skipped_names.append(name)
             continue
 
-        # If user already has a case-insensitive match (e.g. 'GitLab' vs 'gitlab-work')
-        # or specific server, avoid conflicts if desired
+        # Optional servers (GitLab, YouTrack, etc.) - only add if credentials exist
+        required_keys = OPTIONAL_SERVER_REQUIREMENTS.get(name, [])
+        missing_req = False
+        for rk in required_keys:
+            val = env_vars.get(rk, "").strip()
+            if not val or "xxxx" in val or "YOUR_" in val:
+                missing_req = True
+                break
+        if missing_req:
+            skipped_names.append(f"{name} (optional service not configured)")
+            continue
+
         expanded_def = substitute_vars(srv_def, env_vars)
+        if has_unresolved_placeholders(expanded_def):
+            skipped_names.append(f"{name} (unresolved variables)")
+            continue
+
         merged_servers[name] = expanded_def
         added_names.append(name)
 

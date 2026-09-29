@@ -2,6 +2,7 @@
 # [CmdletBinding()]
 param (
     [string]$ProjectDir = "",
+    [switch]$AllProjects,
     [switch]$GlobalOnly,
     [switch]$Force,
     [switch]$Reconfigure
@@ -69,17 +70,30 @@ function Setup-EnvInteractive {
             $key = $parts[0].Trim()
             $defaultVal = $parts[1].Trim()
 
+            $isOptional = ($key -match "GITLAB|YOUTRACK")
+
             # Interactive prompt
-            $promptMsg = "  -> Enter value for $key"
-            if ($defaultVal) {
-                $promptMsg += " [$defaultVal]"
+            if ($isOptional) {
+                $promptMsg = "  -> Enter value for $key (Optional - press Enter to skip if not using)"
+                if ($defaultVal -and $defaultVal -notmatch "xxxx") {
+                    $promptMsg += " [$defaultVal]"
+                }
+            } else {
+                $promptMsg = "  -> Enter value for $key"
+                if ($defaultVal) {
+                    $promptMsg += " [$defaultVal]"
+                }
             }
             $promptMsg += ": "
 
             $userInput = Read-Host -Prompt $promptMsg
 
             if ([string]::IsNullOrWhiteSpace($userInput)) {
-                $finalVal = $defaultVal
+                if ($isOptional -and ($defaultVal -match "xxxx" -or -not $defaultVal)) {
+                    $finalVal = ""
+                } else {
+                    $finalVal = $defaultVal
+                }
             } else {
                 $finalVal = $userInput.Trim()
             }
@@ -277,28 +291,107 @@ if (Test-Path $SubagentsDir) {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Project-level setup (if requested)
+# 3. Project Workspaces Setup
 # ------------------------------------------------------------------------------
+function Configure-SingleProject {
+    param (
+        [string]$TargetDir
+    )
+    if (-not (Test-Path $TargetDir)) { return }
+    $normTarget = ($TargetDir -replace '\\', '/').ToLower()
+    $normRepo = ($RepoRoot -replace '\\', '/').ToLower()
+    if ($normTarget -eq $normRepo -or $normTarget -match "agent-memory") { return }
+
+    $AgentsDir = Join-Path $TargetDir ".agents"
+    $RulesDir = Join-Path $AgentsDir "rules"
+    $SkillsDir = Join-Path $AgentsDir "skills"
+    New-Item -ItemType Directory -Path $RulesDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
+
+    # Link AGENTS.md and GEMINI.md
+    Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "AGENTS.md") -Destination (Join-Path $TargetDir "AGENTS.md")
+    Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "GEMINI.md") -Destination (Join-Path $TargetDir "GEMINI.md")
+
+    # Copy/Link hooks
+    Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "security\hooks.json") -Destination (Join-Path $AgentsDir "hooks.json")
+
+    # Add to trustedFolders.json
+    $tfPath = Join-Path $UserProfile ".gemini\trustedFolders.json"
+    if (Test-Path $tfPath) {
+        try {
+            $tfData = Get-Content $tfPath -Raw | ConvertFrom-Json
+            if (-not $tfData.PSObject.Properties[$normTarget]) {
+                $tfData | Add-Member -NotePropertyName $normTarget -NotePropertyValue "TRUST_FOLDER" -Force
+                $tfData | ConvertTo-Json -Depth 5 | Set-Content -Path $tfPath -Encoding UTF8
+            }
+        } catch {}
+    }
+    Write-Host "  [OK] Configured project: $TargetDir" -ForegroundColor Green
+}
+
 if ($ProjectDir -and -not $GlobalOnly) {
     Write-Host "`n[3/5] Setting up Project Workspace: $ProjectDir" -ForegroundColor Cyan
     if (-not (Test-Path $ProjectDir)) {
         Write-Host "  Error: Target project directory does not exist: $ProjectDir" -ForegroundColor Red
     } else {
-        $AgentsDir = Join-Path $ProjectDir ".agents"
-        $RulesDir = Join-Path $AgentsDir "rules"
-        $SkillsDir = Join-Path $AgentsDir "skills"
-        New-Item -ItemType Directory -Path $RulesDir -Force | Out-Null
-        New-Item -ItemType Directory -Path $SkillsDir -Force | Out-Null
+        Configure-SingleProject -TargetDir $ProjectDir
+    }
+} elseif ($AllProjects -or (-not $GlobalOnly -and -not $ProjectDir)) {
+    $shouldApplyAll = $AllProjects
+    if (-not $AllProjects -and -not $GlobalOnly) {
+        Write-Host "`n[3/5] Project Workspaces Setup..." -ForegroundColor Cyan
+        $ans = Read-Host -Prompt "Apply configuration, AGENTS.md, and hooks to all discovered projects in workspace? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($ans) -or $ans.ToLower().StartsWith("y")) {
+            $shouldApplyAll = $true
+        }
+    }
 
-        # Link AGENTS.md and GEMINI.md
-        Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "AGENTS.md") -Destination (Join-Path $ProjectDir "AGENTS.md")
-        Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "GEMINI.md") -Destination (Join-Path $ProjectDir "GEMINI.md")
+    if ($shouldApplyAll) {
+        Write-Host "`n[3/5] Applying Configuration to All Discovered Projects..." -ForegroundColor Cyan
+        $discovered = @{}
 
-        # Copy/Link hooks
-        Create-SafeLinkOrCopy -Source (Join-Path $RepoRoot "security\hooks.json") -Destination (Join-Path $AgentsDir "hooks.json")
+        # A. From ~/.gemini/projects.json
+        $geminiProjectsFile = Join-Path $UserProfile ".gemini\projects.json"
+        if (Test-Path $geminiProjectsFile) {
+            try {
+                $pjson = Get-Content $geminiProjectsFile -Raw | ConvertFrom-Json
+                if ($pjson.projects) {
+                    foreach ($prop in $pjson.projects.PSObject.Properties) {
+                        $pPath = $prop.Name
+                        if (Test-Path $pPath) {
+                            $discovered[$pPath] = $true
+                        }
+                    }
+                }
+            } catch {}
+        }
+
+        # B. Sibling directories in workspace root (e.g. D:\uriit\*)
+        $ParentDir = Split-Path $RepoRoot -Parent
+        if (Test-Path $ParentDir) {
+            Get-ChildItem -Path $ParentDir -Directory | ForEach-Object {
+                $candidate = $_.FullName
+                if ($candidate -ne $RepoRoot -and $candidate -notmatch "agent-memory") {
+                    $discovered[$candidate] = $true
+                }
+            }
+        }
+
+        $validCount = 0
+        foreach ($p in $discovered.Keys) {
+            $norm = ($p -replace '\\', '/').ToLower()
+            $normR = ($RepoRoot -replace '\\', '/').ToLower()
+            if ($norm -ne $normR -and $norm -notmatch "agent-memory" -and (Test-Path $p)) {
+                Configure-SingleProject -TargetDir $p
+                $validCount++
+            }
+        }
+        Write-Host "  Successfully configured $validCount project workspace(s)." -ForegroundColor Green
+    } else {
+        Write-Host "`n[3/5] Skipping project workspace setup (pass -AllProjects or -ProjectDir <path>)." -ForegroundColor DarkGray
     }
 } else {
-    Write-Host "`n[3/5] Skipping project workspace setup (pass -ProjectDir <path> to configure a project)." -ForegroundColor DarkGray
+    Write-Host "`n[3/5] Skipping project workspace setup (-GlobalOnly specified)." -ForegroundColor DarkGray
 }
 
 # ------------------------------------------------------------------------------
