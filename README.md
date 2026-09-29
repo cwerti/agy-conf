@@ -1,23 +1,100 @@
-# 🪐 Universal AI Agent Configuration & Memory Repository
+# 🪐 Universal AI Agent Configuration & Memory Framework
 
-Универсальный репозиторий конфигурации для **Google Antigravity (AGY)**, **Claude Code**, **Cursor** и других AI-агентов, оптимизированный для **Backend-разработки на Python (FastAPI)** в среде **Windows (PowerShell)** с разделением на **рабочий контур (Self-hosted GitLab + YouTrack)** и **личный контур (GitHub)**.
-
----
-
-## 📑 Навигация по разделам
-1. [Архитектура репозитория](#-архитектура-репозитория)
-2. [Навыки агента (Skills)](#-навыки-агента-skills)
-3. [Специализированные субагенты (Subagents)](#-специализированные-субагенты-subagents)
-4. [Инструменты MCP (Model Context Protocol)](#-инструменты-mcp-model-context-protocol)
-5. [Динамическое переключение БД между проектами](#-динамическое-переключение-бд-между-проектами)
-6. [Безопасность и фильтрация команд](#-безопасность-и-фильтрация-команд)
-7. [Долгосрочная память агента (Memory & Sessions)](#-долгосрочная-память-агента-memory--sessions)
-8. [Правила разработки (Rules)](#-правила-разработки-rules)
-9. [Быстрый старт и управление](#-быстрый-старт-и-управление)
+Универсальный модульный фреймворк конфигурации для **Google Antigravity (AGY)**, **Claude Code**, **Cursor** и других AI-агентов. Оптимизирован для **Backend-разработки на Python (FastAPI)** в среде **Windows (PowerShell)** и **Linux/macOS (bash)** с разделением на **публичный фреймворк**, **личный репозиторий памяти** и **корпоративный рабочий контур**.
 
 ---
 
-## 📁 Архитектура репозитория
+## ⚡ Быстрый запуск (Quick Start)
+
+Все шаги автоматизированы установщиком. Подготовка занимает меньше 2 минут:
+
+### 1. Клонирование репозитория
+```powershell
+git clone https://github.com/cwerti/agy-conf.git D:\uriit\agy-conf
+cd D:\uriit\agy-conf
+```
+
+### 2. Запуск автоматического инсталлятора
+```powershell
+.\scripts\install.ps1 -GlobalOnly
+```
+
+Инсталлятор в интерактивном режиме:
+1. **Проверит `.env`**: если файла нет, запросит параметры (URL личного репозитория памяти, токены GitHub/GitLab/YouTrack, параметры PostgreSQL и Redis) и безопасно сохранит их в `.env`.
+2. **Склонирует личный репозиторий памяти**: если задан `AGENT_MEMORY_REPO_URL`, автоматически склонирует его рядом (`../agent-memory`).
+3. **Безопасно объединит MCP-серверы**: запустит [`scripts/merge_mcp_config.py`](file:///D:/uriit/agy-conf/scripts/merge_mcp_config.py), создаст бэкап и бережно объединит серверы в `~/.gemini/config/mcp_config.json`, **никогда не удаляя** существующие серверы пользователя.
+4. **Установит хуки безопасности и памяти**: зарегистрирует глобальные `PreToolUse` (контроль команд и защита от утечки секретов) и `PreInvocation` (автоматическая подгрузка памяти) хуки.
+5. **Построит локальный поисковый индекс памяти FTS5** для мгновенного поиска без LLM-вызовов.
+
+*(Для Linux / macOS используйте `./scripts/install.sh`)*.
+
+### 3. Удобные шорткаты в PowerShell
+Загрузите алиасы для текущей сессии:
+```powershell
+. .\scripts\profile_alias.ps1
+```
+*(Или добавьте строку `. 'D:\uriit\agy-conf\scripts\profile_alias.ps1'` в свой `$PROFILE` для постоянного доступа)*.
+
+Доступные шорткаты:
+* `agy-mem "<поиск>"` — быстрый поиск по всей базе памяти (FTS5 BM25).
+* `agy-log "<тема>" "<цель>"` — фиксация сессии с автоматическим извлечением фактов и синхронизацией в GitHub.
+* `agy-db` — автоопределение и переключение строки БД для MCP.
+* `agy-sync` — быстрая синхронизация репозитория конфигураций.
+* `agy-doc` — запуск комплексной диагностики окружения (`env-doctor`).
+
+---
+
+## 🏛️ Двухрепозиторная архитектура (Dual-Repository Architecture)
+
+Для того чтобы конфигурации и правила оставались **открытыми и переиспользуемыми** для других разработчиков, а личные заметки, контекст рабочих проектов и корпоративные детали оставались **строго приватными**, система разделена на два репозитория:
+
+| Репозиторий | Назначение | Доступ | Что хранится |
+| :--- | :--- | :--- | :--- |
+| **[`cwerti/agy-conf`](https://github.com/cwerti/agy-conf)** *(Этот репозиторий)* | **Публичный фреймворк конфигураций** | Public / Shared | Универсальные правила (`rules/`), навыки (`skills/`), блюпринты субагентов (`subagents/`), MCP серверы, хуки безопасности и скрипты установки. Чист от личных логов и приватных данных. |
+| **[`cwerti/agent-memory`](https://github.com/cwerti/agent-memory)** | **Персональный репозиторий памяти** | Private | Личный профиль разработчика (`context.md`), типизированные знания (`knowledge/*.jsonl`), журналы сессий (`sessions/*.md`), оверрайды настроек. |
+
+### Как это устроено:
+* Скрипты памяти ([`scripts/memory_index.py`](file:///D:/uriit/agy-conf/scripts/memory_index.py), [`scripts/memory_recall.py`](file:///D:/uriit/agy-conf/scripts/memory_recall.py), [`scripts/record_session.py`](file:///D:/uriit/agy-conf/scripts/record_session.py)) динамически разрешают путь к памяти:
+  1. `AGENT_MEMORY_PATH` (в `.env`: например, `D:\uriit\agent-memory`)
+  2. Соседняя папка `../agent-memory`
+  3. `~/.gemini/agent-memory`
+  4. Локальный фоллбэк: `memory/` внутри `agy-conf` (шаблоны)
+* При записи сессии (`record_session.py --push`) коммит и `git push` происходят **только внутри репозитория памяти**, отправляя данные в `https://github.com/cwerti/agent-memory.git`. Репозиторий `agy-conf` остаётся чистым.
+
+---
+
+## 🧠 Долгосрочная типизированная память (Git-Based Agent Memory)
+
+Реализована по мотивам передовых исследований лета 2026 года (*"Why Git Is the Memory Solution for the ADLC"* — arXiv:2607.14390, *"GitOfThoughts"* — arXiv:2606.14470, *"CommitDistill"* — arXiv:2605.18284):
+
+```text
+agent-memory/
+├── context.md                   # Tier 1: Профиль разработчика, стек, текущие проекты (< 150 строк)
+├── knowledge/                   # Tier 2: Типизированные знания (JSONL в Git)
+│   ├── facts.jsonl              # Проверенные факты окружения (порты, инструменты)
+│   ├── decisions.jsonl          # Архитектурные решения (ADR: вопрос, решение, обоснование)
+│   ├── patterns.jsonl           # Паттерны кодовой базы, структура репозиториев
+│   └── errors.jsonl             # Решённые сложные ошибки и их фиксы
+├── sessions/                    # Tier 3: Хронологические журналы сессий (YYYY-MM-DD-*.md)
+└── index/                       # Локальный кеш (в .gitignore)
+    └── memory.db                # SQLite FTS5 (BM25) полнотекстовый индекс
+```
+
+### Автоматизация памяти:
+1. **Автономный Recall при старте сессии**:
+   Через `PreInvocation` хук ([`scripts/memory_recall.py`](file:///D:/uriit/agy-conf/scripts/memory_recall.py)) агент на 1-м шаге сессии автоматически получает ключевые архитектурные решения и проверенные факты как эфемерное системное сообщение. На последующих шагах хук возвращает 0 токенов расхода.
+2. **Мгновенный локальный поиск (без LLM)**:
+   ```powershell
+   python scripts/memory_index.py search "postgres"
+   # или через шорткат:
+   agy-mem "субагент"
+   ```
+3. **Автономное извлечение знаний при фиксации**:
+   При запуске `record_session.py` скрипт автоматически парсит текст сессии, извлекает факты и решения в `knowledge/*.jsonl`, пересобирает индекс и пушит в GitHub.
+
+---
+
+## 📁 Структура каталогов `agy-conf`
 
 ```text
 agy-conf/
@@ -25,244 +102,122 @@ agy-conf/
 ├── GEMINI.md                  # Точка входа для Google Antigravity & Gemini CLI
 ├── CLAUDE.md                  # Точка входа для Claude Code
 ├── .cursorrules               # Точка входа для Cursor IDE
-├── .gitattributes             # Принудительная нормализация переносов строк (LF vs CRLF)
-├── .gitignore                 # Защита секретов, токенов, .env и локальных оверрайдов
-├── .env.example               # Шаблон всех переменных окружения с комментариями
+├── .gitignore                 # Игнорирование персональных сессий, секретов и SQLite DB
+├── .env.example               # Шаблон переменных с поддержкой AGENT_MEMORY_PATH
 │
 ├── rules/                     # Модульная библиотека правил
 │   ├── general.md             # Общие стандарты коммуникации и точности
 │   ├── fastapi.md             # Pydantic v2, async DB, non-blocking I/O, специфика Windows UTF-8
-│   ├── workspaces.md          # Разделение рабочего GitLab+YouTrack и личного GitHub
-│   ├── memory.md              # Правила автономного ведения журнала решений в memory/
+│   ├── workspaces.md          # Разделение аgy-conf vs agent-memory, GitLab vs GitHub
+│   ├── memory.md              # Трёхуровневая архитектура типизированной памяти
 │   ├── security.md            # Защита секретов, учетных данных и командные запреты
-│   ├── git.md                 # Conventional Commits, защита main/master
+│   ├── git.md                 # Conventional Commits, защита веток
+│   ├── subagents.md           # Протокол динамической активации субагентов
 │   └── code-quality.md        # Тестирование, линтинг (Ruff, Mypy), типизация
 │
 ├── skills/                    # Навыки агентов (Agent Skills Spec)
-│   ├── config-architect/      # Интерактивный AI-консультант для проектирования конфига
-│   ├── add-customization/     # Интерактивное добавление новых правил, скиллов, MCP, команд
-│   ├── session-journal/       # Автономная фиксация сессий и решений в личный GitHub
-│   ├── mcp-manager/           # Управление MCP и переключение баз данных
-│   ├── env-doctor/            # Комплексная диагностика утилит, рантаймов и шлюза безопасности
-│   └── env-sync/              # Развертывание и перенос настроек между машинами
+│   ├── config-architect/      # Интерактивный AI-консультант для архитектуры репозитория
+│   ├── session-journal/       # Автономная фиксация сессий в личный agent-memory
+│   ├── mcp-manager/           # Безопасное слияние MCP и смена строк БД
+│   ├── env-doctor/            # Комплексная диагностика окружения и шлюза безопасности
+│   ├── env-sync/              # Синхронизация между рабочими машинами
+│   └── youtrack-helper/       # Интеграция с корпоративным JetBrains YouTrack
 │
-├── subagents/                 # Специализированные субагенты (Каталог ролей)
+├── subagents/                 # Каталог специализированных субагентов
 │   ├── code-reviewer/         # Ревью кода, Pydantic v2, N+1 queries, безопасность
 │   ├── database-architect/    # Миграции Alembic, анализ индексов и планов EXPLAIN
 │   ├── api-tester/            # Автоматизация тестов FastAPI (pytest-asyncio, httpx)
-│   └── debugger/              # Глубокая отладка трейсбеков и логов в изолированном контексте
+│   └── debugger/              # Отладка трейсбеков и логов в изолированном воркспейсе
 │
 ├── mcp/                       # Model Context Protocol
-│   ├── mcp_config.json        # Активный конфигурационный файл серверов
-│   ├── mcp_config.example.json# Каталог готовых серверов (БД, кэш, докер, гитлаб, ютрек)
-│   └── servers.md             # Подробная документация по настройке и токенам
+│   ├── mcp_config.json        # Конфигурация MCP для Antigravity
+│   └── servers.md             # Описание и настройка серверов
 │
-├── memory/                    # Долгосрочная память агента (Persistent Memory)
-│   ├── context.md             # Компактный индекс профиля разработчика, стека и активных проектов
-│   └── sessions/              # Хронологические журналы сессий (YYYY-MM-DD-<topic>.md)
+├── memory/                    # Шаблоны и точка монтирования памяти
+│   ├── README.md              # Документация по подключению личной памяти
+│   └── context.example.md     # Шаблон контекста разработчика для новых пользователей
 │
-├── security/                  # Политики и шлюз безопасности
-│   ├── commands.json          # Allowlist, Denylist и Require-Confirmation
-│   ├── check_command.py       # Кроссплатформенный валидатор команд (AGY PreToolUse хук)
-│   ├── check_secrets.py       # Валидатор защиты от утечки токенов при редактировании файлов
-│   └── hooks.json             # AGY хуки перехвата команд и записи файлов
+├── security/                  # Политики безопасности и перехватчики
+│   ├── commands.json          # Allowlist, Denylist и правила подтверждения команд
+│   ├── check_command.py       # Валидатор команд (PreToolUse хук)
+│   ├── check_secrets.py       # Защита от утечки токенов при записи файлов
+│   └── hooks.json             # Конфигурация хуков Antigravity
 │
-├── scripts/                   # Автоматизация и утилиты
-│   ├── install.ps1            # Интерактивный установщик с опросом .env для Windows
-│   ├── install.sh             # Интерактивный установщик для Linux / macOS
-│   ├── sync.ps1               # Быстрая синхронизация с Git (Windows)
-│   ├── sync.sh                # Быстрая синхронизация с Git (Linux / macOS)
-│   ├── update_db_connection.py# Автоопределение и обновление DATABASE_URL для MCP
-│   ├── record_session.py      # Скрипт записи логов сессий в memory/
-│   ├── youtrack_client.py     # Легковесный клиент для чтения и комментирования YouTrack
-│   └── profile_alias.ps1      # Шорткаты для PowerShell профиля (agy-db, agy-sync, agy-yt...)
-│
-├── .githooks/                 # Локальные Git-хуки
-│   ├── pre-commit             # Проверка файлов на утечку секретов и линтинг Ruff перед коммитом
-│   └── commit-msg             # Контроль формата Conventional Commits
-│
-└── templates/                 # Шаблоны для подключения к проектам
-    ├── .agents/hooks.json     # Локальный перехватчик для проектов
-    └── fastapi-boilerplate/   # Готовый боевой шаблон сервиса (FastAPI, async DB, Docker)
+└── scripts/                   # Автоматизация и утилиты
+    ├── install.ps1            # Интерактивный установщик (Windows)
+    ├── install.sh             # Интерактивный установщик (Linux/macOS)
+    ├── merge_mcp_config.py    # Безопасный мерджер MCP без затирания пользовательских серверов
+    ├── memory_index.py        # SQLite FTS5 (BM25) индекс и поиск по памяти
+    ├── memory_recall.py       # PreInvocation хук для инжекции активных знаний в сессию
+    ├── record_session.py      # Автономный логгер сессий с пушем в agent-memory
+    ├── update_db_connection.py# Автоопределение и переключение строки БД для MCP
+    └── profile_alias.ps1      # Шорткаты для PowerShell (agy-mem, agy-log, agy-db...)
 ```
-
----
-
-## 🧠 Навыки агента (Skills)
-
-Каждый навык расположен в `skills/<имя>/SKILL.md` и активируется агентом автономно или по вашей команде:
-
-| Навык | Когда активируется / Что делает | Как вызвать вручную |
-| :--- | :--- | :--- |
-| **`config-architect`** | **Интерактивный архитектор-консультант**: обсуждает с вами идеи по развитию конфига, предлагает варианты (Rule vs Skill vs MCP vs Hook), оценивает расход токенов и готовит изменения. | *"Помоги настроить конфиг"*, *"Хочу обсудить добавление Celery"* |
-| **`youtrack-helper`** | **Интеграция с YouTrack**: выгружает описание задачи, Acceptance Criteria и комментарии коллег, создает ветку под задачу. | *"Покажи задачу PROJ-123"*, *"Что в тикете TASK-42"* |
-| **`add-customization`** | Добавляет в репозиторий новые правила (`rules/`), навыки (`skills/`), серверы MCP или команды в `commands.json`. Проверяет синтаксис и сразу тестирует регулярные выражения. | *"Добавь правило для Celery"*, *"Добавь команду в allowlist"* |
-| **`session-journal`** | Формирует структурированный отчет по сессии (цель, принятые решения, измененные файлы, следующие шаги), сохраняет в `memory/sessions/` и пушит в личный GitHub. | *"Зафиксируй сессию"*, *"Сохрани решения в память"* |
-| **`mcp-manager`** | Безопасно настраивает MCP-серверы, проверяет доступность утилит и динамически переключает URL баз данных между проектами. | *"Проверь статус MCP"*, *"Смени БД для проекта"* |
-| **`env-doctor`** | Диагностирует систему: проверяет доступность Python, Node, Git, Docker, валидирует работу хуков безопасности и тестирует тестовые команды. | *"Проверь окружение"*, *"Запусти doctor"* |
-| **`env-sync`** | Подтягивает последние изменения из удаленного репозитория и обновляет глобальные симлинки/копии в `~/.gemini/config/`. | *"Синхронизируй настройки"* |
 
 ---
 
 ## 👥 Специализированные субагенты (Subagents)
 
-Субагенты — это специализированные копии агента с изолированным контекстом и собственной экспертной ролью. Они запускаются параллельно в фоне, решая узкие задачи без захламления основного диалога и перерасхода токенов:
+В Antigravity субагенты определяются сессионно через инструмент `define_subagent` на основе шаблонов в `subagents/<имя>/subagent.json`:
 
-| Субагент | Экспертиза / Роль | Инструменты | Когда применять |
+| Субагент | Роль | Инструменты | Когда применять |
 | :--- | :--- | :--- | :--- |
-| **`code-reviewer`** | Senior Python & FastAPI Code Reviewer | **Read-Only** (код, MCP) | Полный аудит перед созданием MR/коммитом: проверка Pydantic v2, отсутствие sync I/O, N+1 queries, строгая типизация. |
-| **`database-architect`** | PostgreSQL & SQLAlchemy 2.0 Specialist | **Read + Write** (миграции, MCP) | Анализ и генерация миграций Alembic, аудит медленных запросов (`EXPLAIN ANALYZE`), проектирование индексов и защита от локов. |
-| **`api-tester`** | QA Automation Engineer (Pytest) | **Read + Write** (файлы тестов, pytest) | Автоматизация тестов FastAPI: асинхронные тесты (`pytest-asyncio`, `httpx`), валидация HTTP 422, негативные сценарии. |
-| **`debugger`** | Senior Backend Troubleshooter | **Read + Write** (файлы, тесты, логи) | Глубокий анализ трейсбеков ошибок, логов контейнеров Docker, поиск причин плавающих багов в изолированном воркспейсе. |
+| **`code-reviewer`** | Senior Python & FastAPI Reviewer | **Read-Only** (код, MCP) | Аудит перед коммитом: проверка Pydantic v2, non-blocking I/O, N+1 queries. |
+| **`database-architect`** | PostgreSQL & SQLAlchemy 2.0 Specialist | **Read + Write** (миграции, MCP) | Анализ и генерация миграций Alembic, `EXPLAIN ANALYZE`, оптимизация индексов. |
+| **`api-tester`** | QA Automation Engineer | **Read + Write** (файлы тестов, pytest) | Автоматизация тестов FastAPI: асинхронные тесты (`pytest-asyncio`, `httpx`). |
+| **`debugger`** | Senior Backend Troubleshooter | **Read + Write** (файлы, тесты, логи) | Глубокий анализ логов и трейсбеков в изолированном воркспейсе. |
 
-### Как вызывать субагентов
-Вы можете поручить задачу напрямую:
-* *"Запусти code-reviewer для проверки последних изменений"*
+### Примеры вызова в чате:
+* *"Запусти code-reviewer для проверки изменений перед созданием MR"*
 * *"Пусть database-architect проверит сгенерированную миграцию"*
-* *"Поручи api-tester написать интеграционные тесты для роута /auth"*
-* *"Подключи debugger для разбора ошибки в логах"*
+* *"Поручи api-tester написать тесты для эндпоинта аутентификации"*
 
 ---
 
 ## 🔌 Инструменты MCP (Model Context Protocol)
 
-Все серверы в [`mcp/mcp_config.json`](file:///D:/uriit/agy-conf/mcp/mcp_config.json) работают через стандартный `npx` (без привязки к `uv`):
+Все серверы используют стандартный `npx` или Python и безопасно объединяются с существующими настройками через [`scripts/merge_mcp_config.py`](file:///D:/uriit/agy-conf/scripts/merge_mcp_config.py):
 
-### 1. Бэкенд и инфраструктура (FastAPI)
-* **`fetch`**: Позволяет агенту слать реальные HTTP-запросы (GET, POST, PUT, DELETE) к запущенному локально FastAPI (`http://localhost:8000`), скачивать OpenAPI спецификацию и проверять валидацию Pydantic на живом бэкенде.
-* **`postgres-dev`**: Читает реальную структуру таблиц, колонок, индексов и внешних ключей в PostgreSQL, а также выполняет `EXPLAIN ANALYZE` для оптимизации запросов SQLAlchemy.
-* **`redis-dev`**: Инспектирует ключи кэша, TTL, сессии и состояние очередей задач (Celery / Arq / RQ).
-* **`docker`**: Показывает статус контейнеров локального dev-стека (`docker compose ps`) и читает логи упавших сервисов прямо в чат.
-
-### 2. Контроль версий и файловая система
-* **`gitlab-work`**: Подключение к корпоративному self-hosted GitLab через переменные `GITLAB_URL` и `GITLAB_TOKEN` (чтение/создание MR, issues, веток, комментирование код-ревью).
-* **`github-personal`**: Подключение к личному GitHub через `GITHUB_TOKEN`.
-* **`filesystem`**: Быстрый доступ и индексация рабочего пространства `D:\uriit`.
-
----
-
-## 🗄️ Динамическое переключение БД между проектами
-
-Вам **не нужно** вручную редактировать конфиги при смене проекта:
-
-1. **Автоопределение**:
-   Скрипт сам находит строку подключения в `.env`, `alembic.ini` или `config.py` проекта:
-   ```powershell
-   python scripts/update_db_connection.py --auto-detect "D:\uriit\my-app"
-   ```
-2. **Автоматическая нормализация драйверов**:
-   Если в проекте указан асинхронный драйвер `postgresql+asyncpg://...`, скрипт автоматически преобразует его в чистый `postgresql://...`, понятный Node.js MCP-серверу.
-3. **Автовосстановление при ошибке**:
-   Если агент пытается обратиться к БД через MCP и получает ошибку (Connection refused, DB does not exist):
-   * Агент сам спрашивает актуальный `DATABASE_URL`.
-   * Сам запускает `python scripts/update_db_connection.py "<url>"`.
-   * Конфигурация MCP в `~/.gemini/config/mcp_config.json` и переменная окружения Windows обновляются мгновенно.
+* **`fetch`**: Выполнение реальных HTTP-запросов к локальному FastAPI, проверка OpenAPI и эндпоинтов.
+* **`postgres-dev`**: Чтение структуры таблиц, колонок, индексов и запуск `EXPLAIN ANALYZE`.
+* **`redis-dev`**: Инспекция ключей кэша, сессий и очередей задач.
+* **`docker`**: Статус контейнеров (`docker compose ps`) и чтение логов упавших сервисов.
+* **`gitlab-work`**: Интеграция с корпоративным self-hosted GitLab (`GITLAB_URL`, `GITLAB_TOKEN`).
+* **`github-personal`**: Интеграция с личным GitHub (`GITHUB_TOKEN`).
+* **`filesystem`**: Быстрый доступ и индексация рабочего пространства.
 
 ---
 
 ## 🛡️ Безопасность и фильтрация команд
 
-Политика в [`security/commands.json`](file:///D:/uriit/agy-conf/security/commands.json) контролируется скриптом [`security/check_command.py`](file:///D:/uriit/agy-conf/security/check_command.py):
+Политика в [`security/commands.json`](file:///D:/uriit/agy-conf/security/commands.json) контролируется хуком [`security/check_command.py`](file:///D:/uriit/agy-conf/security/check_command.py):
 
-* 🔴 **Denylist (Жестко заблокировано везде)**:
-  * Удаление системных дисков/корня: `rm -rf /`, `rmdir /s /q C:\`, `del /s C:\`.
-  * Форматирование дисков: `format`, `mkfs`, `dd if=`.
+* 🔴 **Denylist (Заблокировано без исключений)**:
+  * Деструктивные команды: `rm -rf /`, `rmdir /s /q C:\`, `del /s C:\`, `format`.
   * Непроверенный запуск скриптов из сети: `curl ... | sh`, `iwr ... | iex`.
-  * Полный сброс схемы БД: `alembic downgrade base`.
-  * Принудительный пуш в основные ветки: `git push --force` в `main`/`master`.
-* 🟡 **Require Confirmation (Требуется подтверждение)**:
+  * Сброс схемы БД: `alembic downgrade base`.
+  * Принудительный пуш: `git push --force` в `main`/`master`.
+* 🟡 **Require Confirmation (Требуется подтверждение пользователя)**:
   * `git push` в **корпоративный GitLab**.
   * Накат миграций на базу: `alembic upgrade head`.
   * Установка пакетов: `pip install`, `poetry add/install`, `npm i -g`.
   * Деструктивные действия с контейнерами: `docker compose down -v`, `docker system prune`.
-* 🟢 **Allowlist (Разрешено автоматически)**:
-  * `git push` в **личный репозиторий памяти** (совпадающий с `AGENT_MEMORY_REPO_URL` или репозиторий `agy-conf`).
+* 🟢 **Allowlist (Разрешено автоматически без диалогов)**:
+  * `git push` в **личный репозиторий памяти** (`agent-memory`) и личный GitHub.
   * Чтение git: `git status`, `git log`, `git diff`, `git branch`.
   * Инспекция файлов: `ls`, `dir`, `Get-ChildItem`, `cat`, `Get-Content`.
   * Проверка версий: `python --version`, `node -v`, `git --version`, `poetry --version`.
-  * Тесты и линтеры: `pytest`, `poetry run pytest`, `ruff check`, `mypy`, `black --check`.
+  * Тесты и линтеры: `pytest`, `poetry run pytest`, `ruff check`, `mypy`.
   * Безопасная инспекция миграций: `alembic current`, `alembic heads`, `alembic history`.
 
 ---
 
-## 🧠 Долгосрочная память агента (Memory & Sessions)
+## 🔗 Подключение к проектам
 
-Позволяет сохранять контекст между сессиями без повторного объяснения архитектуры и расхода токенов:
-
-1. **Глобальный контекст: [`memory/context.md`](file:///D:/uriit/agy-conf/memory/context.md)**:
-   * Профиль разработчика, используемый стек (Windows, FastAPI, PostgreSQL, без `uv`).
-   * Разделение на корпоративный контур (GitLab + YouTrack) и личный (GitHub).
-   * Список ключевых принятых решений (ADR).
-2. **Журнал сессий: [`memory/sessions/`](file:///D:/uriit/agy-conf/memory/sessions/)**:
-   * Датированные файлы `YYYY-MM-DD-<тема>.md`.
-   * Агент автоматически фиксирует ход работы, аргументы за/против выбранных библиотек и список измененных файлов.
-3. **Синхронизация**:
-   * Переменная `AGENT_MEMORY_REPO_URL` задает целевой репозиторий.
-   * `git push` в этот репозиторий **разрешен агенту автоматически** — агент сам сохраняет свои отчеты без диалогов подтверждения.
-
----
-
-## 📜 Правила разработки (Rules)
-
-* **[`rules/fastapi.md`](file:///D:/uriit/agy-conf/rules/fastapi.md)**:
-  * Pydantic v2 (`ConfigDict`, строгие DTO).
-  * Async сессии SQLAlchemy 2.0 через `Depends(get_db)` с безопасным commit/rollback.
-  * Запрет блокирующего I/O в `async def` (только `asyncio.sleep`, `httpx.AsyncClient`).
-  * **Windows**: обязательное указание `encoding="utf-8"` при работе с файлами (защита от крашей CP1251) и использование `pathlib.Path`.
-* **[`rules/workspaces.md`](file:///D:/uriit/agy-conf/rules/workspaces.md)**:
-  * Разделение рабочих и личных коммитов через `includeIf` в `~/.gitconfig`.
-  * Привязка задач YouTrack к коммитам (`feat(TASK-123): ...`).
-  * Запрет на попадание корпоративных ссылок и токенов в личный GitHub.
-* **[`rules/security.md`](file:///D:/uriit/agy-conf/rules/security.md)**:
-  * Запрет на хардкод секретов, токенов и паролей в коде.
-
----
-
-## 🚀 Быстрый старт и управление
-
-### 1. Первоначальная установка на Windows
-
-Запустите скрипт установки в PowerShell:
-
-```powershell
-.\scripts\install.ps1 -GlobalOnly
-```
-
-1. Скрипт проверит наличие `.env`. Если его нет, он прочитает [`.env.example`](file:///D:/uriit/agy-conf/.env.example) и **интерактивно запросит в терминале** все необходимые переменные:
-   * `AGENT_MEMORY_REPO_URL` (ссылка на ваш личный GitHub репозиторий)
-   * Токены GitLab, YouTrack, GitHub
-   * Строки подключения к PostgreSQL и Redis
-2. Нажмите `Enter`, чтобы принять значение по умолчанию, или введите своё.
-3. Скрипт предложит применить переменные в профиль Windows User (`[Y/n]`).
-4. Свяжет MCP-конфигурацию с Antigravity (`~/.gemini/config/mcp_config.json`) и проверит работу шлюза безопасности.
-
-*(Если потребуется заново пройти опрос: `.\scripts\install.ps1 -Reconfigure`)*.
-
----
-
-### 2. Подключение правил и хуков к конкретному проекту
-
-Чтобы применить правила и шлюз безопасности к проекту разработки:
+Чтобы применить правила и шлюз безопасности к любому проекту разработки:
 
 ```powershell
 .\scripts\install.ps1 -ProjectDir "D:\uriit\my-backend-app"
 ```
 
-В проекте будет создана папка `.agents/` с перехватчиком `hooks.json`, а также файлы `AGENTS.md` и `GEMINI.md`.
-
----
-
-### 3. Рутинные команды управления
-
-* **Синхронизация репозитория конфигурации**:
-  ```powershell
-  .\scripts\sync.ps1 -CommitMessage "feat: add celery guidelines"
-  ```
-* **Переключение базы данных для MCP**:
-  ```powershell
-  python scripts/update_db_connection.py --auto-detect "D:\uriit\another-project"
-  ```
-* **Ручная запись сессии в память**:
-  ```powershell
-  python scripts/record_session.py "fastapi-auth" "Setup JWT authentication" "Used PyJWT and passlib" app/auth.py
-  ```
+В целевом проекте будет создана папка `.agents/` с перехватчиком `hooks.json`, а также симлинки/копии на `AGENTS.md` и `GEMINI.md`.
