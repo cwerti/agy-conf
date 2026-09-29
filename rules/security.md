@@ -14,9 +14,10 @@
   - System shutdown/reboot commands.
 - Commands requiring confirmation:
   - Global package installations (`npm i -g`, `pip install --user`).
-  - Destructive database migrations or container deletions.
+  - Destructive database migrations or container/volume deletions (`docker compose down -v`, `docker system prune`, `docker volume rm/prune`, `docker rm -f`).
   - Pushing changes to remote git branches.
 - Safe commands (safe to run without asking):
   - Read-only inspections (`git status`, `git log`, `ls`, `dir`, `cat`, `view_file`).
-  - Version checks (`node -v`, `python --version`, `cargo --version`).
+  - Version checks (`node -v`, `python --version`, `cargo --version`, `docker --version`).
+  - Safe Docker commands: container & log inspection (`docker ps`, `docker logs`, `docker inspect`, `docker compose ps`), and routine lifecycle (`docker compose up`, `docker compose down`, `docker compose restart`, `docker build`, `docker run`).
   - Linting and localized automated test suites (`npm test`, `pytest`).

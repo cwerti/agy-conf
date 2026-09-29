@@ -51,7 +51,7 @@
         "reason": "Applying database migrations with alembic upgrade requires confirmation."
       },
       {
-        "pattern": "(^|\\s)docker(\\s+compose)?\\s+(down\\s+-v|system\\s+prune|rm\\s+-f)",
+        "pattern": "(^|\\s)(docker(-compose)?|docker\\s+compose)(\\s+.*)?\\s+(down\\s+-[a-zA-Z0-9]*v|system\\s+prune|volume\\s+(rm|prune)|rm\\s+-[a-zA-Z0-9]*f|rmi\\s+-[a-zA-Z0-9]*f)",
         "reason": "Docker volume deletion or container pruning requires user confirmation."
       },
       {
@@ -71,6 +71,14 @@
       {
         "pattern": "^(python|python3|node|npm|poetry|git|docker)(\\s+.*)?(--version|-v|version)$",
         "description": "Version and environment inspection"
+      },
+      {
+        "pattern": "^(docker(-compose)?|docker\\s+compose)(\\s+.*)?\\s+(ps|logs|inspect|images|image\\s+(ls|inspect)|volume\\s+(ls|inspect)|network\\s+(ls|inspect)|stats|port|top)(\\s+.*)?$",
+        "description": "Safe docker inspection and monitoring commands (ps, logs, inspect, images, volume/network ls, etc.)"
+      },
+      {
+        "pattern": "^(docker(-compose)?|docker\\s+compose)(\\s+.*)?\\s+(up|down|start|stop|restart|build|pull|run|exec)(\\s+.*)?$",
+        "description": "Routine docker container lifecycle operations (up, down, start, stop, restart, build, pull, run, exec)"
       },
       {
         "pattern": "^python(3)?\\s+([a-zA-Z0-9_./\\\\]+)?(scripts|security)[/\\\\][a-zA-Z0-9_-]+\\.py(\\s+.*)?$",
