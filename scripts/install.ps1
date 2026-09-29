@@ -452,6 +452,30 @@ if (Test-Path $MemIndexScript) {
 }
 
 Write-Host "`n[5/5] Installation completed successfully!" -ForegroundColor Cyan
-Write-Host "`n⚡ Tip: Load PowerShell shortcuts by running:" -ForegroundColor Yellow
-Write-Host "  . '$RepoRoot\scripts\profile_alias.ps1'" -ForegroundColor White
-Write-Host "Or add it to your permanent `$PROFILE for instant access to agy-db, agy-sync, agy-log, agy-yt!`n" -ForegroundColor DarkGray
+
+# ------------------------------------------------------------------------------
+# PowerShell Profile Configuration
+# ------------------------------------------------------------------------------
+$ProfileShortcutLine = ". '$RepoRoot\scripts\profile_alias.ps1'"
+$addProfile = Read-Host -Prompt "Add AGY shortcuts (agy-db, agy-sync, agy-mem, agy-doc) to your permanent PowerShell `$PROFILE? [Y/n]"
+if ([string]::IsNullOrWhiteSpace($addProfile) -or $addProfile.ToLower().StartsWith("y")) {
+    try {
+        $profileDir = Split-Path -Parent $PROFILE
+        if (-not (Test-Path $profileDir)) {
+            New-Item -ItemType Directory -Path $profileDir -Force | Out-Null
+        }
+        $existingProfile = if (Test-Path $PROFILE) { Get-Content $PROFILE -Raw } else { "" }
+        if ($existingProfile -notmatch [regex]::Escape($ProfileShortcutLine)) {
+            Add-Content -Path $PROFILE -Value "`n# AGY Agent Shortcuts`n$ProfileShortcutLine`n"
+            Write-Host "  [OK] Added AGY shortcuts to $PROFILE" -ForegroundColor Green
+        } else {
+            Write-Host "  [OK] Shortcuts already present in $PROFILE" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  Warning: could not update `$PROFILE automatically: $_" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "`n⚡ Tip: You can load shortcuts in current session manually with:" -ForegroundColor DarkGray
+    Write-Host "  $ProfileShortcutLine" -ForegroundColor White
+}
+Write-Host "`nAll set! Open a new PowerShell terminal or run: . '$RepoRoot\scripts\profile_alias.ps1'`n" -ForegroundColor Cyan

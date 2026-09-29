@@ -35,13 +35,19 @@ function agy-log {
     & python "$script:AgyConfRoot\scripts\record_session.py" $Topic $Objective $Reasoning
 }
 
-# 4. YouTrack Issue Lookup
+# 4. Agent Memory Search (FTS5 BM25)
+function agy-mem {
+    param([Parameter(Mandatory=$true)][string]$Query)
+    & python "$script:AgyConfRoot\scripts\memory_index.py" search $Query
+}
+
+# 5. YouTrack Issue Lookup
 function agy-yt {
     param([Parameter(Mandatory=$true)][string]$IssueId)
     & python "$script:AgyConfRoot\scripts\youtrack_client.py" get $IssueId
 }
 
-# 5. Environment Doctor
+# 6. Environment Doctor
 function agy-doctor {
     Write-Host "--- Checking Core Tooling ---" -ForegroundColor Cyan
     python --version
@@ -52,4 +58,6 @@ function agy-doctor {
     & python "$script:AgyConfRoot\security\check_command.py" "git status"
 }
 
-Write-Host "AGY PowerShell shortcuts loaded: agy-sync, agy-db, agy-log, agy-yt, agy-doctor" -ForegroundColor DarkCyan
+Set-Alias -Name agy-doc -Value agy-doctor
+
+Write-Host "AGY PowerShell shortcuts loaded: agy-sync, agy-db, agy-log, agy-mem, agy-yt, agy-doctor, agy-doc" -ForegroundColor DarkCyan
