@@ -28,6 +28,7 @@ This repository contains shared rules, skills, MCP configurations, and command s
   - [`env-doctor`](file:///D:/uriit/agy-conf/skills/env-doctor/SKILL.md): Troubleshoot and diagnose environment tools.
   - [`mcp-manager`](file:///D:/uriit/agy-conf/skills/mcp-manager/SKILL.md): Safely configure and test MCP servers.
   - [`youtrack-helper`](file:///D:/uriit/agy-conf/skills/youtrack-helper/SKILL.md): Fetch task requirements and post updates to JetBrains YouTrack.
+  - [`max-bot-design`](file:///D:/uriit/agy-conf/skills/max-bot-design/SKILL.md): Build or restyle MAX messenger bots (maxapi) in the unified ANK bot design.
 - **Subagents**: Specialized autonomous agents declared in `subagents/`
   - `code-reviewer`: Senior Python & FastAPI read-only reviewer for PRs, Pydantic v2, and async safety.
   - `database-architect`: PostgreSQL & SQLAlchemy 2.0 specialist for migrations and query plans.

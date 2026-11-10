@@ -120,7 +120,8 @@ agy-conf/
 │   ├── mcp-manager/           # Безопасное слияние MCP и смена строк БД
 │   ├── env-doctor/            # Комплексная диагностика окружения и шлюза безопасности
 │   ├── env-sync/              # Синхронизация между рабочими машинами
-│   └── youtrack-helper/       # Интеграция с корпоративным JetBrains YouTrack
+│   ├── youtrack-helper/       # Интеграция с корпоративным JetBrains YouTrack
+│   └── max-bot-design/        # Боты для MAX (maxapi) в едином дизайне ANK-бота
 │
 ├── subagents/                 # Каталог специализированных субагентов
 │   ├── code-reviewer/         # Ревью кода, Pydantic v2, N+1 queries, безопасность
